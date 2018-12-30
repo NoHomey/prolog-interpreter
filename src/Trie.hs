@@ -5,7 +5,7 @@ import qualified Data.List as L
 import Prelude hiding (find)
 import Data.Maybe
 
-data Trie k v = Node {value :: Maybe v, children :: [(k, Trie k v)]} deriving (Show)
+data Trie k v = Node {value :: Maybe v, children :: [(k, Trie k v)]}
 
 empty :: Trie k v
 empty = Node {value = Nothing, children = []}
