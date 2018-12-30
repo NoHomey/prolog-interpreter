@@ -1,15 +1,23 @@
-module PrologDataBase (Term(..), Atom(..), Rule(..), PrologParseTree, PrologDataBase, prologDataBase) where
-
-import Debug.Trace
+module PrologDataBase (
+    Identifier,
+    Term(..),
+    Atom(..),
+    Rule(..),
+    PrologParseTree,
+    PrologDataBase,
+    prologDataBase,
+    fArity,
+    pArity
+) where
 
 import qualified Grammar as G
 import qualified ParseTree as PT
 import qualified PrologGrammar as PG
-
 import Data.List
 
-data Term = Const [PG.E] | Var [PG.E] | Func {funcSymbol :: String, params :: [Term]} deriving (Eq)
-data Atom = Atom {predSymbol :: String, terms :: [Term]}
+type Identifier = [PG.E] 
+data Term = Const Identifier | Var Identifier | Func {funcSymbol :: Identifier, params :: [Term]} deriving (Eq)
+data Atom = Atom {predSymbol :: Identifier, terms :: [Term]}
 data Rule = Rule {rhead :: Atom, body :: [Atom]}
 
 instance Show Term where
@@ -74,3 +82,10 @@ rule r = case PT.value r of
 
 prologDataBase :: PrologParseTree -> PrologDataBase
 prologDataBase = recTransform rule
+
+fArity :: Term -> Int
+fArity (Func _ params) = length params
+fArity _ = 0
+
+pArity :: Atom -> Int
+pArity = length . terms
