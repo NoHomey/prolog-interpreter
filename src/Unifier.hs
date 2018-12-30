@@ -1,22 +1,22 @@
 module Unifier (Unifier, unify) where
 
-import PrologDataBase
+import PrologRules
 import Control.Monad
 import Data.Function
 import Data.Maybe
 
-type Unifier = [(Identifier, Term)]
+type Unifier s v = [(v, Term s v)]
 
-type Equations = [(Term, Term)]
+type Equations s v = [(Term s v, Term s v)]
 
-data UnificationStep = Delete | Decompose | Conflict | Check | Eliminate (Identifier, Term) 
+data UnificationStep s v = Delete | Decompose | Conflict | Check | Eliminate (v, Term s v) 
 
-vars :: Term -> [Identifier]
+vars :: Term s v -> [v]
 vars (Const _) = []
 vars (Var x) = [x]
 vars (Func f p) = concatMap vars p
 
-step :: Equations -> Maybe (UnificationStep, Equations)
+step :: (Eq s, Eq v) => Equations s v -> Maybe (UnificationStep s v, Equations s v)
 step [] = Nothing
 step g@(e@(a, b):es) = if a == b 
                          then nextStep es Delete 
@@ -39,16 +39,16 @@ step g@(e@(a, b):es) = if a == b
                                  then Just (tag, ng)
                                  else rest 
 
-substitute :: Identifier -> Term -> Term -> Term
+substitute :: (Eq v) => v -> Term s v -> Term s v -> Term s v
 substitute x r t = case t of
                        (Var y) -> if x == y then r else t
                        (Const _) -> t
                        (Func f p) -> Func {funcSymbol = f, params = map (substitute x r) p}
 
-unwrapVar :: Equations -> Unifier
+unwrapVar :: Equations s v -> Unifier s v
 unwrapVar = map (\(Var x, t) -> (x, t))
 
-tryUnify :: Equations -> Maybe Unifier
+tryUnify :: (Eq s, Eq v) => Equations s v -> Maybe (Unifier s v)
 tryUnify g = let s = step g
              in if isNothing s
                   then Just $ unwrapVar g
@@ -61,7 +61,7 @@ tryUnify g = let s = step g
                                                          us <- tryUnify $ map (\(y, r) -> (y, substitute x t r)) g'
                                                          return $ (x, foldr (\(y, r) t' -> substitute y r t') t us):us
                     
-unify :: Atom -> Atom -> Maybe Unifier
+unify :: (Eq s, Eq v) => Atom s v -> Atom s v -> Maybe (Unifier s v)
 unify a b = do
               guard $ ((==) `on` predSymbol) a b
               guard $ ((==) `on` pArity) a b

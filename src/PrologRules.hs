@@ -1,11 +1,11 @@
-module PrologDataBase (
+module PrologRules (
     Identifier,
     Term(..),
     Atom(..),
     Rule(..),
     PrologParseTree,
-    PrologDataBase,
-    prologDataBase,
+    Rules,
+    rules,
     fArity,
     pArity
 ) where
@@ -15,25 +15,28 @@ import qualified ParseTree as PT
 import qualified PrologGrammar as PG
 import Data.List
 
-type Identifier = [PG.E] 
-data Term = Const Identifier | Var Identifier | Func {funcSymbol :: Identifier, params :: [Term]} deriving (Eq)
-data Atom = Atom {predSymbol :: Identifier, terms :: [Term]}
-data Rule = Rule {rhead :: Atom, body :: [Atom]}
+type Identifier = [PG.E]
 
-instance Show Term where
-    show (Const id) = id
-    show (Var id) = id
-    show f = (funcSymbol f) ++ (show $ params f)
+data Term s v = Const s | Var v | Func {funcSymbol :: s, params :: [Term s v]} deriving (Eq)
 
-instance Show Atom where
-    show a = (predSymbol a) ++ (show $ terms a)
+data Atom s v = Atom {predSymbol :: s, terms :: [Term s v]}
 
-instance Show Rule where
-    show r = (show $ rhead r) ++ if null $ body r then "" else (" <- " ++ (show $ body r))
+data Rule s v = Rule {rhead :: Atom s v, body :: [Atom s v]}
 
 type PrologParseTree = PT.ParseTree PG.GVars PG.E
 
-type PrologDataBase = [Rule]
+type Rules s v = [Rule s v]
+
+instance (Show s, Show v) => Show (Term s v) where
+    show (Const id) = show id
+    show (Var id) = show id
+    show f = (show $ funcSymbol f) ++ (show $ params f)
+
+instance (Show s, Show v) => Show (Atom s v) where
+    show a = (show $ predSymbol a) ++ (show $ terms a)
+
+instance (Show s, Show v) => Show (Rule s v) where
+    show r = (show $ rhead r) ++ if null $ body r then "" else (" <- " ++ (show $ body r))
 
 onlyChild :: PrologParseTree -> PrologParseTree
 onlyChild pt = let [c] = PT.child pt in c
@@ -54,38 +57,38 @@ recTransform f pt = case PT.child pt of
                            [t, ts] -> (f t):(recTransform f ts)
                            [t] -> [f t]
 
-identifier :: PrologParseTree -> [PG.E]
+identifier :: PrologParseTree -> Identifier
 identifier = recTransform terminal
 
-var :: PrologParseTree -> [PG.E]
+var :: PrologParseTree -> Identifier
 var = recTransform terminal
 
-term :: PrologParseTree -> Term
+term :: PrologParseTree -> Term Identifier Identifier
 term pt = let child = onlyChild pt in case PT.value child of          
               G.N PG.Var -> Var $ var $ child
               G.N PG.Const -> Const $ identifier $ onlyChild child
               G.N PG.Func -> Func {funcSymbol = identifier $ firstChild child, params = listOfTerms $ secondChild child}
 
-listOfTerms :: PrologParseTree -> [Term]
+listOfTerms :: PrologParseTree -> [Term Identifier Identifier]
 listOfTerms = recTransform term
 
-atom :: PrologParseTree -> Atom
+atom :: PrologParseTree -> Atom Identifier Identifier
 atom pt = Atom {predSymbol = identifier $ firstChild pt, terms = listOfTerms $ secondChild pt}
 
-atoms :: PrologParseTree -> [Atom]
+atoms :: PrologParseTree -> [Atom Identifier Identifier]
 atoms = recTransform atom
 
-rule :: PrologParseTree -> Rule
+rule :: PrologParseTree -> Rule  Identifier Identifier
 rule r = case PT.value r of
              G.N PG.Fact -> Rule {rhead = atom $ onlyChild r, body = []}
              G.N PG.Rule -> Rule {rhead = atom $ firstChild r, body = atoms $ secondChild r}
 
-prologDataBase :: PrologParseTree -> PrologDataBase
-prologDataBase = recTransform rule
+rules :: PrologParseTree -> Rules Identifier Identifier
+rules = recTransform rule
 
-fArity :: Term -> Int
+fArity :: Term s v -> Int
 fArity (Func _ params) = length params
 fArity _ = 0
 
-pArity :: Atom -> Int
+pArity :: Atom s v -> Int
 pArity = length . terms
