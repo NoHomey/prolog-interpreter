@@ -29,10 +29,7 @@ type PrologParseTree = PT.ParseTree PG.GVars PG.E
 type Rules s v = [Rule s v]
 
 instance Functor (Term s) where
-    fmap f t = case t of
-                   (Var y) -> Var $ f y
-                   (Const c) -> Const c
-                   (Func s ps) -> Func {funcSymbol = s, params = map (fmap f) ps}
+    fmap f = tmap (Var . f)
 
 instance (Show s, Show v) => Show (Term s v) where
     show (Const id) = show id
