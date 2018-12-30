@@ -1,4 +1,4 @@
-module ParseTree (ParseTree, value, child, parse) where
+module ParseTree (ParseTree, value, children, parse) where
 
 import Grammar
 import Data.Maybe
@@ -6,12 +6,12 @@ import Data.List
 import Control.Monad
 import Control.Monad.State
 
-data ParseTree n t = ParseTree {value :: Symbol n t, child :: [ParseTree n t]} deriving (Eq, Show)
+data ParseTree n t = ParseTree {value :: Symbol n t, children :: [ParseTree n t]} deriving (Eq, Show)
 
 type ParseResult n t = State [t] (Maybe (ParseTree n t))
 
 parseTree :: Symbol n t -> [ParseTree n t] -> ParseTree n t
-parseTree s cs = ParseTree {value = s, child = cs}
+parseTree s cs = ParseTree {value = s, children = cs}
 
 parseTreeLeaf :: Symbol n t -> ParseTree n t
 parseTreeLeaf s = parseTree s []

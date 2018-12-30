@@ -39,13 +39,13 @@ instance (Show s, Show v) => Show (Rule s v) where
     show r = (show $ rhead r) ++ if null $ body r then "" else (" <- " ++ (show $ body r))
 
 onlyChild :: PrologParseTree -> PrologParseTree
-onlyChild pt = let [c] = PT.child pt in c
+onlyChild pt = let [c] = PT.children pt in c
 
 firstChild :: PrologParseTree -> PrologParseTree
-firstChild pt = head $ PT.child pt
+firstChild pt = head $ PT.children pt
 
 secondChild :: PrologParseTree -> PrologParseTree
-secondChild pt = head $ tail $ PT.child pt
+secondChild pt = head $ tail $ PT.children pt
 
 terminal :: PrologParseTree -> PG.E
 terminal pt = case PT.value pt of
@@ -53,7 +53,7 @@ terminal pt = case PT.value pt of
                   G.N _ -> terminal $ onlyChild pt
 
 recTransform :: (PrologParseTree -> a) -> PrologParseTree -> [a]
-recTransform f pt = case PT.child pt of
+recTransform f pt = case PT.children pt of
                            [t, ts] -> (f t):(recTransform f ts)
                            [t] -> [f t]
 
