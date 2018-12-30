@@ -5,7 +5,6 @@ import Control.Monad
 import Data.Function
 import Data.List
 import Data.Maybe
-import qualified Data.Foldable as F
 
 type Unifier s v = [(v, Term s v)]
 
@@ -42,16 +41,10 @@ step g@(e@(a, b):es) = if a == b
                                  else rest 
 
 substitute :: (Eq v) => v -> Term s v -> Term s v -> Term s v
-substitute x r t = case t of
-                       (Var y) -> if x == y then r else t
-                       (Const _) -> t
-                       (Func f p) -> Func {funcSymbol = f, params = map (substitute x r) p}
+substitute x r t = tmap (\y -> if x == y then r else (Var y)) t
 
 applySubstitution :: (v -> Maybe (Term s v)) -> Term s v -> Term s v
-applySubstitution s t = case t of
-                            (Var x) -> let mt = s x in if isJust mt then fromJust mt else t
-                            (Const _) -> t
-                            (Func f p) -> Func {funcSymbol = f, params = map (applySubstitution s) p}
+applySubstitution s = tmap (\x -> let mt = s x in if isJust mt then fromJust mt else (Var x))
 
 unwrapVar :: Equations s v -> Unifier s v
 unwrapVar = map (\(Var x, t) -> (x, t))

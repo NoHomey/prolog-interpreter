@@ -7,7 +7,8 @@ module PrologRules (
     Rules,
     rules,
     fArity,
-    pArity
+    pArity,
+    tmap
 ) where
 
 import qualified Grammar as G
@@ -26,6 +27,12 @@ data Rule s v = Rule {rhead :: Atom s v, body :: [Atom s v]}
 type PrologParseTree = PT.ParseTree PG.GVars PG.E
 
 type Rules s v = [Rule s v]
+
+instance Functor (Term s) where
+    fmap f t = case t of
+                   (Var y) -> Var $ f y
+                   (Const c) -> Const c
+                   (Func s ps) -> Func {funcSymbol = s, params = map (fmap f) ps}
 
 instance (Show s, Show v) => Show (Term s v) where
     show (Const id) = show id
@@ -92,3 +99,9 @@ fArity _ = 0
 
 pArity :: Atom s v -> Int
 pArity = length . terms
+
+tmap :: (a -> Term s b) -> Term s a -> Term s b
+tmap f t = case t of
+               (Var y) -> f y
+               (Const c) -> Const c
+               (Func s ps) -> Func {funcSymbol = s, params = map (tmap f) ps}
