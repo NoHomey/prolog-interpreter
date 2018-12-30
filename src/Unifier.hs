@@ -1,9 +1,11 @@
-module Unifier (Unifier, unify) where
+module Unifier (Unifier, vars, substitute, applySubstitution, substitution, unify) where
 
 import PrologRules
 import Control.Monad
 import Data.Function
+import Data.List
 import Data.Maybe
+import qualified Data.Foldable as F
 
 type Unifier s v = [(v, Term s v)]
 
@@ -45,8 +47,19 @@ substitute x r t = case t of
                        (Const _) -> t
                        (Func f p) -> Func {funcSymbol = f, params = map (substitute x r) p}
 
+applySubstitution :: (v -> Maybe (Term s v)) -> Term s v -> Term s v
+applySubstitution s t = case t of
+                            (Var x) -> let mt = s x in if isJust mt then fromJust mt else t
+                            (Const _) -> t
+                            (Func f p) -> Func {funcSymbol = f, params = map (applySubstitution s) p}
+
 unwrapVar :: Equations s v -> Unifier s v
 unwrapVar = map (\(Var x, t) -> (x, t))
+
+substitution :: (Eq v) => Unifier s v -> v -> Maybe (Term s v)
+substitution u v = do
+                     r <- find ((v ==) . fst) u
+                     return $ snd r 
 
 tryUnify :: (Eq s, Eq v) => Equations s v -> Maybe (Unifier s v)
 tryUnify g = let s = step g
@@ -58,8 +71,8 @@ tryUnify g = let s = step g
                            (Conflict, _) -> Nothing
                            (Check, _) -> Nothing
                            (Eliminate (x, t), g') -> do
-                                                         us <- tryUnify $ map (\(y, r) -> (y, substitute x t r)) g'
-                                                         return $ (x, foldr (\(y, r) t' -> substitute y r t') t us):us
+                                                       us <- tryUnify $ map (\(y, r) -> (y, substitute x t r)) g'
+                                                       return $ (x, applySubstitution (substitution us) t):us
                     
 unify :: (Eq s, Eq v) => Atom s v -> Atom s v -> Maybe (Unifier s v)
 unify a b = do
