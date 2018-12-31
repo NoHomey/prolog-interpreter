@@ -7,6 +7,11 @@ import KeyedCollection
 
 newtype AssocList k v = AssocList {assocList :: [(k, v)]}
 
+instance Ord k =>  KeyedCollection (AssocList k) k where
+    empty = cast []
+    find al k = sortedFind (assocList al) k
+    insert al k v = cast $ sortedInsert (assocList al) k v
+
 cast :: [(k, v)] -> AssocList k v
 cast al = AssocList {assocList = al}
 
@@ -20,8 +25,3 @@ sortedInsert l@(p@(x, _):ps) k v = case compare x k of
                                        LT -> p:sortedInsert ps k v
                                        EQ -> (k, v):ps
                                        GT -> (k, v):l
-
-instance KeyedCollection (AssocList k) k where
-    empty = cast []
-    find al k = sortedFind (assocList al) k
-    insert al k v = cast $ sortedInsert (assocList al) k v

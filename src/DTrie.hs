@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module DTrie where
+module DTrie (DTrie) where
 
 import DTuple
 import DTupleMaybe

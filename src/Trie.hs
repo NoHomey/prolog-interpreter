@@ -1,9 +1,17 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+
 module Trie (Trie, empty, insert, find) where
 
 import qualified KeyedCollection as KC
 import qualified KeyToPath as KP
 
 data Trie c k p v = Node {value :: Maybe v, children :: c (Trie c k p v)}
+
+instance (Ord p, KP.KeyToPath k p, KC.KeyedCollection c p) => KC.KeyedCollection (Trie c k p) k where
+    empty = empty
+    find = find
+    insert = insert
 
 empty :: (KP.KeyToPath k p, KC.KeyedCollection c p) => Trie c k p v
 empty = Node {value = Nothing, children = KC.empty}

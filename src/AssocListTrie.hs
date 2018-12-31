@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module AssocListTrie where
+module AssocListTrie (AssocListTrie) where
 
 import KeyedCollection
 import KeyToPath
