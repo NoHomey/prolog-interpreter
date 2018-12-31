@@ -2,7 +2,7 @@ module DTuple (Digit(..), DTuple, select, set, fill, toDigits) where
 
 import Debug.Trace
 
-data Digit = D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9
+data Digit = D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9 deriving (Eq, Ord)
 
 newtype DTuple a = DTuple {tuple :: (a, a, a, a, a, a, a, a, a, a)}
 
