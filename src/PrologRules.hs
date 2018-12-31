@@ -3,8 +3,9 @@ module PrologRules (
     Term(..),
     Atom(..),
     Rule(..),
-    PrologParseTree,
+    Atoms,
     Rules,
+    PrologParseTree,
     rules,
     fArity,
     pArity,
@@ -25,6 +26,8 @@ data Atom s v = Atom {predSymbol :: s, terms :: [Term s v]}
 data Rule s v = Rule {rhead :: Atom s v, body :: [Atom s v]}
 
 type PrologParseTree = PT.ParseTree PG.GVars PG.E
+
+type Atoms s v = [Atom s v]
 
 type Rules s v = [Rule s v]
 

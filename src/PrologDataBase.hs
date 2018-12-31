@@ -1,6 +1,7 @@
 --{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module PrologDataBase (
+    TransformState,
     mapTermM,
     mapAtomM,
     mapRuleM,
@@ -8,7 +9,9 @@ module PrologDataBase (
     transformSyms,
     transformVars,
     transformRule,
-    transformRules
+    transformRules,
+    transformAtom,
+    transformAtoms
 ) where
 
 import PrologRules
@@ -16,7 +19,7 @@ import qualified KeyedCollection as KC
 import KeyToPath
 import Control.Monad.State
 
-type TransformRuleState predsC symsC varsC c d x = State ((c, predsC c), (c, symsC c), (d, varsC d)) x 
+type TransformState predsC symsC varsC c d x = State ((c, predsC c), (c, symsC c), (d, varsC d)) x 
 
 mapTermM :: Monad m => (a -> m c) -> (b -> m d) -> Term a b -> m (Term c d)
 mapTermM f g t = case t of
@@ -41,7 +44,7 @@ mapRuleM h f g r = do
                      return $ Rule {rhead = h, body = bs}
 
 transformPreds :: (Eq a, KC.KeyedCollection predsC a) =>
-                 (c -> c) -> a -> TransformRuleState predsC symsC varsC c d c
+                 (c -> c) -> a -> TransformState predsC symsC varsC c d c
 transformPreds update pred = state action
     where action ((st, col), syms, vars) = case KC.find col pred of
                                                 Nothing -> let col' = KC.insert col pred st
@@ -50,7 +53,7 @@ transformPreds update pred = state action
                                                 Just v -> (v, ((st, col), syms, vars))
 
 transformSyms :: (Eq a, KC.KeyedCollection symsC a) =>
-                 (c -> c) -> a -> TransformRuleState predsC symsC varsC c d c
+                 (c -> c) -> a -> TransformState predsC symsC varsC c d c
 transformSyms update sym = state action
     where action (preds, (st, col), vars) = case KC.find col sym of
                                                 Nothing -> let col' = KC.insert col sym st
@@ -59,7 +62,7 @@ transformSyms update sym = state action
                                                 Just v -> (v, (preds, (st, col), vars))
                             
 transformVars :: (Eq b, KC.KeyedCollection varsC b) =>
-                 (d -> d) -> b -> TransformRuleState predsC symsC varsC c d d
+                 (d -> d) -> b -> TransformState predsC symsC varsC c d d
 transformVars update var = state action
     where action (preds, syms, (st, col)) = case KC.find col var of
                                                 Nothing -> let col' = KC.insert col var st
@@ -77,3 +80,11 @@ transformRule nextPred nextSym nextVar vars rule = state action
 transformRules :: (Eq a, Eq b, KC.KeyedCollection predsC a, KC.KeyedCollection symsC a, KC.KeyedCollection varsC b) =>
                   (c -> c) -> (c -> c) -> (d -> d) -> (d, varsC d) -> Rules a b -> State ((c, predsC c), (c, symsC c)) (Rules c d)
 transformRules nextPred nextSym nextVar vars = mapM (transformRule nextPred nextSym nextVar vars)
+
+transformAtom :: (Eq a, Eq b, KC.KeyedCollection predsC a, KC.KeyedCollection symsC a, KC.KeyedCollection varsC b) =>
+                 (c -> c) -> (c -> c) -> (d -> d) -> Atom a b -> TransformState predsC symsC varsC c d (Atom c d)
+transformAtom nextPred nextSym nextVar = mapAtomM (transformPreds nextPred) (transformSyms nextSym) (transformVars nextVar)
+
+transformAtoms :: (Eq a, Eq b, KC.KeyedCollection predsC a, KC.KeyedCollection symsC a, KC.KeyedCollection varsC b) =>
+                  (c -> c) -> (c -> c) -> (d -> d) -> Atoms a b -> TransformState predsC symsC varsC c d (Atoms c d)
+transformAtoms nextPred nextSym nextVar = mapM (transformAtom nextPred nextSym nextVar)
