@@ -11,7 +11,7 @@ import qualified PrologDataBase as PDB
 import Control.Monad.State
 import Data.Maybe
 
-prog = "p(X). q(X) :- p(X). nat(z). nat(s(X)) :- nat(X). f(X1, X2) :- p(X1), q(X2). p(a). q(abc). f(abc, bc). g(suc(suc(X)), z) :- nat( s(X) ), f( abc, f(g(h(t))))."
+prog = "p(X). q(X) :- p(X). nat(z). nat(s(X)) :- nat(X). f(X1, X2) :- p(X1), q(X2). p(a). q(abc). f(abc, bc). g(suc(suc(X)), c) :- nat( s(X) ), f( abc, f(g(h(d))))."
 
 rules :: [PG.E] -> PRs.Rules PRs.Identifier PRs.Identifier PRs.Identifier
 rules str = PRs.rules $ fromJust $ PT.parse PG.prologGrammar (Just [' ', '\t', '\n']) PG.Start str
@@ -19,7 +19,7 @@ rules str = PRs.rules $ fromJust $ PT.parse PG.prologGrammar (Just [' ', '\t', '
 atom :: [PG.E] -> PRs.Atom PRs.Identifier PRs.Identifier PRs.Identifier
 atom str = PRs.rhead $ head $ rules str
 
-astr = "p(g(X, V), X, a, V, s(T), T, h(c, d), c)."
+astr = "p(g(X, V), X, abc, V, s(T), T, h(c, d), c)."
 bstr = "p(Y, s(Z), Z, s(W), W, b, h(c, d), c)."
 a = atom astr
 b = atom bstr
@@ -33,13 +33,13 @@ main = do
     let rs = rules prog
     let as = [a, b]
     let mrs = PDB.transformRules (+1) (+1) (+1) (1, et) rs :: State ((Int, C), (Int, C)) (PRs.Rules Int Int Int)
-    let mas = PDB.transformAtoms (+1) (+1) (+1) as :: State ((Int, C), (Int, C), (Int, C)) (PRs.Atoms Int Int Int)
-    let (db, ((_, preds), _)) = PDB.createDataBase (+1) (+1) (+1) ((1, et), (1, et)) (1, et) rs :: (DT.DTrie Int (PRs.Rules Int Int Int), ((Int, C), (Int, C))) 
+    let mas = PDB.transformQuery (+1) (+1) (+1) as :: State ((Int, C), (Int, C), (Int, C)) (PRs.Atoms Int Int Int)
+    let (db, (preds@(_, predsCol), syms)) = PDB.createDataBase (+1) (+1) (+1) ((1, et), (1, et)) (1, et) rs :: (DT.DTrie Int (PRs.Rules Int Int Int), ((Int, C), (Int, C))) 
     sequence_ $ map print rs
     sequence_ $ map print $ evalState mrs ((1, et), (1, et))
     sequence_ $ map print as
-    sequence_ $ map print $ evalState mas ((1, et), (1, et), (1, et))
-    let res = fromJust $ KC.find db $ fromJust $ KC.find preds "nat"
+    sequence_ $ map print $ evalState mas (preds, syms, (1, et))
+    let res = fromJust $ KC.find db $ fromJust $ KC.find predsCol "nat"
     print "first nat"
     print $ head res
     print "find nat"

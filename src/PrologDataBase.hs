@@ -12,6 +12,7 @@ module PrologDataBase (
     transformRules,
     transformAtom,
     transformAtoms,
+    transformQuery,
     createDataBase
 ) where
 
@@ -84,6 +85,12 @@ transformAtom nextPred nextSym nextVar = mapAtomM (transformPreds nextPred) (tra
 transformAtoms :: (Eq a, Eq c, Eq x, KC.KeyedCollection predsC a, KC.KeyedCollection symsC c, KC.KeyedCollection varsC x) =>
                   (b -> b) -> (d -> d) -> (y -> y) -> Atoms a c x -> TransformState predsC symsC varsC b d y (Atoms b d y)
 transformAtoms nextPred nextSym nextVar = mapM (transformAtom nextPred nextSym nextVar)
+
+transformQuery :: (Eq a, Eq c, Eq x, KC.KeyedCollection predsC a, KC.KeyedCollection symsC c, KC.KeyedCollection varsC x) =>
+                  (b -> b) -> (d -> d) -> (y -> y) -> Atoms a c x -> TransformState predsC symsC varsC b d y (Atoms b d y)
+transformQuery nextPred nextSym nextVar query = state $ \s@(preds, _, _) -> let m = transformAtoms nextPred nextSym nextVar query
+                                                                                (query', (_, syms', vars')) = runState m s
+                                                                            in (query', (preds, syms', vars'))
 
 createDataBase :: (Eq a, Eq c, Eq x, Eq b, KC.KeyedCollection predsC a, KC.KeyedCollection symsC c, KC.KeyedCollection varsC x, KC.KeyedCollection dbC b, Functor dbC) =>
             (b -> b) -> (d -> d) -> (y -> y) -> ((b, predsC b), (d, symsC d)) -> (y, varsC y) ->
