@@ -32,7 +32,7 @@ main = do
     let mrs = PDB.transformRules (+1) (+1) (+1) (1, et) rs :: State ((Int, C), (Int, C)) (PRs.Rules Int Int Int)
     let mq = PDB.transformQuery (+1) (+1) (+1) [a] :: State ((Int, C), (Int, C), (Int, C)) (PRs.Atoms Int Int Int)
     let (db, (preds@(_, predsCol), syms@(_, symsCol))) = PDB.createDataBase (+1) (+1) (+1) ((1, et), (1, et)) (1, et) rs :: (DT.DTrie Int (PRs.Rules Int Int Int), ((Int, C), (Int, C))) 
-    let q = evalState mq ((1, et), preds, syms)
+    let q = evalState mq (preds, syms, (1, et))
     let r = R.resolve (+1) 0 db q
     case fst r of
         Nothing -> print "No solution"
