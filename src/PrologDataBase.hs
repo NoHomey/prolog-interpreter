@@ -11,7 +11,8 @@ module PrologDataBase (
     transformRule,
     transformRules,
     transformAtom,
-    transformAtoms
+    transformAtoms,
+    createDataBase
 ) where
 
 import PrologRules
@@ -83,3 +84,15 @@ transformAtom nextPred nextSym nextVar = mapAtomM (transformPreds nextPred) (tra
 transformAtoms :: (Eq a, Eq c, Eq x, KC.KeyedCollection predsC a, KC.KeyedCollection symsC c, KC.KeyedCollection varsC x) =>
                   (b -> b) -> (d -> d) -> (y -> y) -> Atoms a c x -> TransformState predsC symsC varsC b d y (Atoms b d y)
 transformAtoms nextPred nextSym nextVar = mapM (transformAtom nextPred nextSym nextVar)
+
+createDataBase :: (Eq a, Eq c, Eq x, Eq b, KC.KeyedCollection predsC a, KC.KeyedCollection symsC c, KC.KeyedCollection varsC x, KC.KeyedCollection dbC b, Functor dbC) =>
+            (b -> b) -> (d -> d) -> (y -> y) -> ((b, predsC b), (d, symsC d)) -> (y, varsC y) ->
+            Rules a c x -> (dbC (Rules b d y), ((b, predsC b), (d, symsC d)))
+createDataBase nextPred nextSym nextVar st vars rules = let m = transformRules nextPred nextSym nextVar vars rules
+                                                            (rules', st') = runState m st
+                                                        in (insertIntoDB rules', st')
+    where insertIntoDB rules = fmap reverse $ execState (mapM_ insertRule rules) KC.empty 
+          insertRule rule = state $ \db -> let p = predSymbol $ rhead rule
+                                           in ((), KC.insert db p $ case KC.find db p of
+                                                                        Nothing -> [rule]
+                                                                        Just rs -> rule:rs) 

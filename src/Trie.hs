@@ -13,6 +13,9 @@ instance (Ord p, KP.KeyToPath k p, KC.KeyedCollection c p) => KC.KeyedCollection
     find = find
     insert = insert
 
+instance (Functor c) => Functor (Trie c k p) where
+    fmap f t = Node {value = fmap f (value t), children = fmap (fmap f) (children t)}
+
 empty :: (KP.KeyToPath k p, KC.KeyedCollection c p) => Trie c k p v
 empty = Node {value = Nothing, children = KC.empty}
 

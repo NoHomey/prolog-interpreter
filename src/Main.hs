@@ -5,7 +5,7 @@ import qualified PrologGrammar as PG
 import qualified PrologRules as PRs
 import qualified Unifier as U
 import qualified DTrie as DT
-import qualified Trie as T
+import qualified KeyedCollection as KC
 import qualified AssocListTrie as ALT
 import qualified PrologDataBase as PDB
 import Control.Monad.State
@@ -27,14 +27,21 @@ b = atom bstr
 type C = ALT.AssocListTrie Char Int 
 
 et :: C
-et = T.empty
+et = KC.empty
 
 main = do
     let rs = rules prog
     let as = [a, b]
     let mrs = PDB.transformRules (+1) (+1) (+1) (1, et) rs :: State ((Int, C), (Int, C)) (PRs.Rules Int Int Int)
     let mas = PDB.transformAtoms (+1) (+1) (+1) as :: State ((Int, C), (Int, C), (Int, C)) (PRs.Atoms Int Int Int)
-    sequence_ $ map (putStrLn . show) rs
-    sequence_ $ map (putStrLn . show) $ evalState mrs ((1, et), (1, et))
-    sequence_ $ map (putStrLn . show) as
-    sequence_ $ map (putStrLn . show) $ evalState mas ((1, et), (1, et), (1, et))
+    let (db, ((_, preds), _)) = PDB.createDataBase (+1) (+1) (+1) ((1, et), (1, et)) (1, et) rs :: (DT.DTrie Int (PRs.Rules Int Int Int), ((Int, C), (Int, C))) 
+    sequence_ $ map print rs
+    sequence_ $ map print $ evalState mrs ((1, et), (1, et))
+    sequence_ $ map print as
+    sequence_ $ map print $ evalState mas ((1, et), (1, et), (1, et))
+    let res = fromJust $ KC.find db $ fromJust $ KC.find preds "nat"
+    print "first nat"
+    print $ head res
+    print "find nat"
+    sequence_ $ map print $ res
+    

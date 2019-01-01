@@ -12,6 +12,9 @@ instance Ord k =>  KeyedCollection (AssocList k) k where
     find al k = sortedFind (assocList al) k
     insert al k v = cast $ sortedInsert (assocList al) k v
 
+instance Functor (AssocList k) where
+    fmap f = cast . map (fmap f) . assocList
+
 cast :: [(k, v)] -> AssocList k v
 cast al = AssocList {assocList = al}
 
