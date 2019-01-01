@@ -21,15 +21,15 @@ type Identifier = [PG.E]
 
 data Term s v = Const s | Var v | Func {funcSymbol :: s, params :: [Term s v]} deriving (Eq)
 
-data Atom s v = Atom {predSymbol :: s, terms :: [Term s v]}
+data Atom p s v = Atom {predSymbol :: p, terms :: [Term s v]}
 
-data Rule s v = Rule {rhead :: Atom s v, body :: [Atom s v]}
+data Rule p s v = Rule {rhead :: Atom p s v, body :: [Atom p s v]}
 
 type PrologParseTree = PT.ParseTree PG.GVars PG.E
 
-type Atoms s v = [Atom s v]
+type Atoms p s v = [Atom p s v]
 
-type Rules s v = [Rule s v]
+type Rules p s v = [Rule p s v]
 
 instance Functor (Term s) where
     fmap f = tmap (Var . f)
@@ -39,10 +39,10 @@ instance (Show s, Show v) => Show (Term s v) where
     show (Var id) = show id
     show f = (show $ funcSymbol f) ++ (show $ params f)
 
-instance (Show s, Show v) => Show (Atom s v) where
+instance (Show p, Show s, Show v) => Show (Atom p s v) where
     show a = (show $ predSymbol a) ++ (show $ terms a)
 
-instance (Show s, Show v) => Show (Rule s v) where
+instance (Show p, Show s, Show v) => Show (Rule p s v) where
     show r = (show $ rhead r) ++ if null $ body r then "" else (" <- " ++ (show $ body r))
 
 onlyChild :: PrologParseTree -> PrologParseTree
@@ -79,25 +79,25 @@ term pt = let child = onlyChild pt in case PT.value child of
 listOfTerms :: PrologParseTree -> [Term Identifier Identifier]
 listOfTerms = recTransform term
 
-atom :: PrologParseTree -> Atom Identifier Identifier
+atom :: PrologParseTree -> Atom Identifier Identifier Identifier
 atom pt = Atom {predSymbol = identifier $ firstChild pt, terms = listOfTerms $ secondChild pt}
 
-atoms :: PrologParseTree -> [Atom Identifier Identifier]
+atoms :: PrologParseTree -> [Atom Identifier Identifier Identifier]
 atoms = recTransform atom
 
-rule :: PrologParseTree -> Rule  Identifier Identifier
+rule :: PrologParseTree -> Rule Identifier Identifier Identifier
 rule r = case PT.value r of
              G.N PG.Fact -> Rule {rhead = atom $ onlyChild r, body = []}
              G.N PG.Rule -> Rule {rhead = atom $ firstChild r, body = atoms $ secondChild r}
 
-rules :: PrologParseTree -> Rules Identifier Identifier
+rules :: PrologParseTree -> Rules Identifier Identifier Identifier
 rules = recTransform rule
 
 fArity :: Term s v -> Int
 fArity (Func _ params) = length params
 fArity _ = 0
 
-pArity :: Atom s v -> Int
+pArity :: Atom p s v -> Int
 pArity = length . terms
 
 tmap :: (a -> Term s b) -> Term s a -> Term s b

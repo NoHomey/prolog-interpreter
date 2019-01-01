@@ -19,7 +19,7 @@ import qualified KeyedCollection as KC
 import KeyToPath
 import Control.Monad.State
 
-type TransformState predsC symsC varsC c d x = State ((c, predsC c), (c, symsC c), (d, varsC d)) x 
+type TransformState predsC symsC varsC a b c d = State ((a, predsC a), (b, symsC b), (c, varsC c)) d 
 
 mapTermM :: Monad m => (a -> m c) -> (b -> m d) -> Term a b -> m (Term c d)
 mapTermM f g t = case t of
@@ -30,61 +30,56 @@ mapTermM f g t = case t of
                                         ps' <- mapM (mapTermM f g) ps
                                         return $ Func {funcSymbol = s', params = ps'}
 
-mapAtomM :: Monad m => (a -> m c) -> (a -> m c) -> (b -> m d) -> Atom a b -> m (Atom c d)
+mapAtomM :: Monad m => (a -> m c) -> (b -> m d) -> (x -> m y) -> Atom a b x -> m (Atom c d y)
 mapAtomM h f g a = do
                       p <- h $ predSymbol a
                       ts <- mapM (mapTermM f g) $ terms a
                       return $ Atom {predSymbol = p, terms = ts}
 
-mapRuleM :: Monad m => (a -> m c) ->  (a -> m c) -> (b -> m d) -> Rule a b -> m (Rule c d)
+mapRuleM :: Monad m => (a -> m c) ->  (b -> m d) -> (x -> m y) -> Rule a b x -> m (Rule c d y)
 mapRuleM h f g r = do
                      let m = mapAtomM h f g
                      h <- m $ rhead r
                      bs <- mapM m $ body r
                      return $ Rule {rhead = h, body = bs}
 
-transformPreds :: (Eq a, KC.KeyedCollection predsC a) =>
-                 (c -> c) -> a -> TransformState predsC symsC varsC c d c
+transform :: (Eq a, KC.KeyedCollection col a) => (b -> b) -> (b, col b) -> a -> (b, (b, col b))
+transform update (st, col) k = case KC.find col k of
+                                   Nothing -> let col' = KC.insert col k st
+                                                  st' = update st
+                                              in (st, (st', col'))
+                                   Just v -> (v, (st, col))
+
+transformPreds :: (Eq a, KC.KeyedCollection predsC a) => (b -> b) -> a -> TransformState predsC symsC varsC b d y b
 transformPreds update pred = state action
-    where action ((st, col), syms, vars) = case KC.find col pred of
-                                                Nothing -> let col' = KC.insert col pred st
-                                                               st' = update st
-                                                           in (st, ((st', col'), syms, vars))
-                                                Just v -> (v, ((st, col), syms, vars))
+    where action (preds, syms, vars) = let (pred', preds') = transform update preds pred 
+                                       in (pred', (preds', syms, vars))
 
-transformSyms :: (Eq a, KC.KeyedCollection symsC a) =>
-                 (c -> c) -> a -> TransformState predsC symsC varsC c d c
+transformSyms :: (Eq c, KC.KeyedCollection symsC c) => (d -> d) -> c -> TransformState predsC symsC varsC b d y d
 transformSyms update sym = state action
-    where action (preds, (st, col), vars) = case KC.find col sym of
-                                                Nothing -> let col' = KC.insert col sym st
-                                                               st' = update st
-                                                           in (st, (preds, (st', col'), vars))
-                                                Just v -> (v, (preds, (st, col), vars))
+    where action (preds, syms, vars) = let (sym', syms') = transform update syms sym 
+                                       in (sym', (preds, syms', vars))
                             
-transformVars :: (Eq b, KC.KeyedCollection varsC b) =>
-                 (d -> d) -> b -> TransformState predsC symsC varsC c d d
+transformVars :: (Eq x, KC.KeyedCollection varsC x) => (y -> y) -> x -> TransformState predsC symsC varsC b d y y
 transformVars update var = state action
-    where action (preds, syms, (st, col)) = case KC.find col var of
-                                                Nothing -> let col' = KC.insert col var st
-                                                               st' = update st
-                                                           in (st, (preds, syms, (st', col')))
-                                                Just v -> (v, (preds, syms, (st, col)))
+    where action (preds, syms, vars) = let (var', vars') = transform update vars var 
+                                       in (var', (preds, syms, vars'))
 
-transformRule :: (Eq a, Eq b, KC.KeyedCollection predsC a, KC.KeyedCollection symsC a, KC.KeyedCollection varsC b) =>
-                 (c -> c) -> (c -> c) -> (d -> d) -> (d, varsC d) -> Rule a b -> State ((c, predsC c), (c, symsC c)) (Rule c d)
+transformRule :: (Eq a, Eq c, Eq x, KC.KeyedCollection predsC a, KC.KeyedCollection symsC c, KC.KeyedCollection varsC x) =>
+                 (b -> b) -> (d -> d) -> (y -> y) -> (y, varsC y) -> Rule a c x -> State ((b, predsC b), (d, symsC d)) (Rule b d y)
 transformRule nextPred nextSym nextVar vars rule = state action
     where action (preds, syms) = let m = mapRuleM (transformPreds nextPred) (transformSyms nextSym) (transformVars nextVar) rule
                                      (rule', (preds', syms', _)) = runState m (preds, syms, vars)
                                  in (rule', (preds', syms'))
 
-transformRules :: (Eq a, Eq b, KC.KeyedCollection predsC a, KC.KeyedCollection symsC a, KC.KeyedCollection varsC b) =>
-                  (c -> c) -> (c -> c) -> (d -> d) -> (d, varsC d) -> Rules a b -> State ((c, predsC c), (c, symsC c)) (Rules c d)
+transformRules :: (Eq a, Eq c, Eq x, KC.KeyedCollection predsC a, KC.KeyedCollection symsC c, KC.KeyedCollection varsC x) =>
+                  (b -> b) -> (d -> d) -> (y -> y) -> (y, varsC y) -> Rules a c x -> State ((b, predsC b), (d, symsC d)) (Rules b d y)
 transformRules nextPred nextSym nextVar vars = mapM (transformRule nextPred nextSym nextVar vars)
 
-transformAtom :: (Eq a, Eq b, KC.KeyedCollection predsC a, KC.KeyedCollection symsC a, KC.KeyedCollection varsC b) =>
-                 (c -> c) -> (c -> c) -> (d -> d) -> Atom a b -> TransformState predsC symsC varsC c d (Atom c d)
+transformAtom :: (Eq a, Eq c, Eq x, KC.KeyedCollection predsC a, KC.KeyedCollection symsC c, KC.KeyedCollection varsC x) =>
+                 (b -> b) -> (d -> d) -> (y -> y) -> Atom a c x -> TransformState predsC symsC varsC b d y (Atom b d y)
 transformAtom nextPred nextSym nextVar = mapAtomM (transformPreds nextPred) (transformSyms nextSym) (transformVars nextVar)
 
-transformAtoms :: (Eq a, Eq b, KC.KeyedCollection predsC a, KC.KeyedCollection symsC a, KC.KeyedCollection varsC b) =>
-                  (c -> c) -> (c -> c) -> (d -> d) -> Atoms a b -> TransformState predsC symsC varsC c d (Atoms c d)
+transformAtoms :: (Eq a, Eq c, Eq x, KC.KeyedCollection predsC a, KC.KeyedCollection symsC c, KC.KeyedCollection varsC x) =>
+                  (b -> b) -> (d -> d) -> (y -> y) -> Atoms a c x -> TransformState predsC symsC varsC b d y (Atoms b d y)
 transformAtoms nextPred nextSym nextVar = mapM (transformAtom nextPred nextSym nextVar)

@@ -67,7 +67,7 @@ tryUnify g = let s = step g
                                                        us <- tryUnify $ map (\(y, r) -> (y, substitute x t r)) g'
                                                        return $ (x, applySubstitution (substitution us) t):us
                     
-unify :: (Eq s, Eq v) => Atom s v -> Atom s v -> Maybe (Unifier s v)
+unify :: (Eq p, Eq s, Eq v) => Atom p s v -> Atom p s v -> Maybe (Unifier s v)
 unify a b = do
               guard $ ((==) `on` predSymbol) a b
               guard $ ((==) `on` pArity) a b
