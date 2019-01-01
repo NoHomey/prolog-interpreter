@@ -1,4 +1,12 @@
-module Unifier (Unifier, vars, substitute, applySubstitution, substitution, unify) where
+module Unifier (
+     Unifier,
+     vars,
+     substitute,
+     applySubstitution,
+     substitution,
+     compose,
+     unify
+) where
 
 import PrologRules
 import Control.Monad
@@ -40,19 +48,22 @@ step g@(e@(a, b):es) = if a == b
                                  then Just (tag, ng)
                                  else rest 
 
+unwrapVar :: Equations s v -> Unifier s v
+unwrapVar = map (\(Var x, t) -> (x, t))
+
 substitute :: (Eq v) => v -> Term s v -> Term s v -> Term s v
 substitute x r t = tmap (\y -> if x == y then r else (Var y)) t
 
 applySubstitution :: (v -> Maybe (Term s v)) -> Term s v -> Term s v
 applySubstitution s = tmap (\x -> let mt = s x in if isJust mt then fromJust mt else (Var x))
 
-unwrapVar :: Equations s v -> Unifier s v
-unwrapVar = map (\(Var x, t) -> (x, t))
-
 substitution :: (Eq v) => Unifier s v -> v -> Maybe (Term s v)
 substitution u v = do
                      r <- find ((v ==) . fst) u
-                     return $ snd r 
+                     return $ snd r
+
+compose :: (Eq v) => Unifier s v -> Unifier s v -> Unifier s v
+compose uf ug = (map (fmap (applySubstitution (substitution uf))) ug) ++ (filter (isNothing . (substitution ug) . fst) uf)
 
 tryUnify :: (Eq s, Eq v) => Equations s v -> Maybe (Unifier s v)
 tryUnify g = let s = step g

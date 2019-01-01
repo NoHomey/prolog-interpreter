@@ -44,4 +44,5 @@ main = do
     print $ head res
     print "find nat"
     sequence_ $ map print $ res
+    print $ U.compose [('y', PRs.Const 1), ('z', PRs.Const 2)] [('x', PRs.Func {PRs.funcSymbol = 3, PRs.params = [PRs.Var 'y']})]
     
