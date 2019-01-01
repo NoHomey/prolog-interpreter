@@ -1,5 +1,6 @@
 module Unifier (
      Unifier,
+     empty,
      vars,
      substitute,
      applySubstitution,
@@ -19,6 +20,9 @@ type Unifier s v = [(v, Term s v)]
 type Equations s v = [(Term s v, Term s v)]
 
 data UnificationStep s v = Delete | Decompose | Conflict | Check | Eliminate (v, Term s v) 
+
+empty :: Unifier s v
+empty = []
 
 vars :: Term s v -> [v]
 vars (Const _) = []
@@ -63,7 +67,7 @@ substitution u v = do
                      return $ snd r
 
 compose :: (Eq v) => Unifier s v -> Unifier s v -> Unifier s v
-compose uf ug = (map (fmap (applySubstitution (substitution uf))) ug) ++ (filter (isNothing . (substitution ug) . fst) uf)
+compose uf ug = (map (fmap (applySubstitution (substitution uf))) ug) ++ (filter (isNothing . substitution ug . fst) uf)
 
 tryUnify :: (Eq s, Eq v) => Equations s v -> Maybe (Unifier s v)
 tryUnify g = let s = step g
