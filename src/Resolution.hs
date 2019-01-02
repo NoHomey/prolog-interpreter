@@ -27,6 +27,15 @@ continue nextId db = do
                        put p
                        process nextId db l (options c)
 
+restart :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> db (PRs.Rules p s v) -> State (ResolutionPath p s v) (Maybe (U.Unifier s (v, v)))
+restart nextId db = do
+                       (l:rs) <- get
+                       if null $ options l
+                          then do
+                                 put rs
+                                 restart nextId db
+                          else continue nextId db
+
 backtrack :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> db (PRs.Rules p s v) -> State (ResolutionPath p s v) (Maybe (U.Unifier s (v, v)))
 backtrack nextId db = do
                         moved <- moveUp
@@ -39,11 +48,12 @@ process nextId db l rules = tryMatch rules
           id = rid l
           g' = subs vals g
           tryMatch [] = backtrack nextId db
-          tryMatch (r:rs) = case U.unify g (rename id (PRs.rhead r)) of
+          tryMatch (r:rs) = case U.unify g' (rename id (PRs.rhead r)) of
                                 Nothing -> tryMatch rs
                                 Just u -> do
                                             p <- get
-                                            put $ (step (addBody u r) (U.compose u vals) rs (nextId id)):p
+                                            let u' = U.compose u vals
+                                            put $ (step (addBody u' r) u' rs (nextId id)):p
                                             resolutionStep nextId db
           addBody u rule = (map (subs u . rename id) (PRs.body rule)) ++ (tail $ goal l)
           subs u a = PRs.Atom {PRs.predSymbol = PRs.predSymbol a, PRs.terms = map (U.applySubstitution (U.substitution u)) $ PRs.terms a}    
@@ -71,4 +81,4 @@ resolve :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> v -> db (P
 resolve nextId id db q = transform id (resolutionStep nextId db) [step (map (rename id) q) U.empty [] (nextId id)]
 
 next :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> v -> db (PRs.Rules p s v) -> ResolutionPath p s v -> (Maybe [(v, PRs.Term s (v, v))], ResolutionPath p s v)
-next nextId id db path = transform id (continue nextId db) path
+next nextId id db path = transform id (restart nextId db) path
