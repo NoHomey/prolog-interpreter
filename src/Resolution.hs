@@ -25,17 +25,18 @@ continue :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> db (PRs.R
 continue nextId db = do
                        (c:p@(l:_)) <- get
                        put p
-                       process nextId (rid c) db l (options c)
+                       process nextId db l (options c)
 
 backtrack :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> db (PRs.Rules p s v) -> State (ResolutionPath p s v) (Maybe (U.Unifier s (v, v)))
 backtrack nextId db = do
                         moved <- moveUp
                         if moved then continue nextId db else return Nothing
 
-process :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> v -> db (PRs.Rules p s v) -> ResolutionStep p s v -> PRs.Rules p s v -> State (ResolutionPath p s v) (Maybe (U.Unifier s (v, v)))
-process nextId id db l rules = tryMatch rules
+process :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> db (PRs.Rules p s v) -> ResolutionStep p s v -> PRs.Rules p s v -> State (ResolutionPath p s v) (Maybe (U.Unifier s (v, v)))
+process nextId db l rules = tryMatch rules
     where g = head $ goal l
           vals = varsValues l
+          id = rid l
           g' = PRs.Atom {PRs.predSymbol = PRs.predSymbol g, PRs.terms = map (U.applySubstitution (U.substitution vals)) $ PRs.terms g}
           tryMatch [] = backtrack nextId db
           tryMatch (r:rs) = case U.unify g (rename id (PRs.rhead r)) of
@@ -54,7 +55,7 @@ resolutionStep nextId db = do
                                then return $ Just $ varsValues l
                                else case KC.find db $ PRs.predSymbol $ head $ goal l of
                                         Nothing -> backtrack nextId db
-                                        Just rules -> process nextId (rid l) db l rules
+                                        Just rules -> process nextId db l rules
 
 step :: Query p s (v, v) -> U.Unifier s (v, v) -> PRs.Rules p s v -> v -> ResolutionStep p s v
 step q u rs id = ResolutionStep {goal = q, varsValues = u, options = rs, rid = id}
@@ -67,7 +68,7 @@ transform id st path = let (u, p) = runState st path
                        in (fmap (map (\((_, x), t) -> (x, t)) . filter ((id == ). fst . fst)) u, p) 
 
 resolve :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> v -> db (PRs.Rules p s v) -> Query p s v -> (Maybe [(v, PRs.Term s (v, v))], ResolutionPath p s v) 
-resolve nextId id db q = transform id (resolutionStep nextId db) [step (map (rename id) q) U.empty [] id]
+resolve nextId id db q = transform id (resolutionStep nextId db) [step (map (rename id) q) U.empty [] (nextId id)]
 
 next :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> v -> db (PRs.Rules p s v) -> ResolutionPath p s v -> (Maybe [(v, PRs.Term s (v, v))], ResolutionPath p s v)
 next nextId id db path = transform id (continue nextId db) path

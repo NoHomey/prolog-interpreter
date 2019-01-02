@@ -12,7 +12,8 @@ import qualified Resolution as R
 import Control.Monad.State
 import Data.Maybe
 
-prog = "member(X, l(X, T)). member(X, l(Y, T)) :- member(X, T)."
+prog = "member2(X, l(X, l(X, T))). member2(X, l(Y, T)) :- member2(X, T)."
+--prog = "nat(z). nat(s(X)) :- nat(X)."
 
 rules :: [PG.E] -> PRs.Rules PRs.Identifier PRs.Identifier PRs.Identifier
 rules str = PRs.rules $ fromJust $ PT.parse PG.prologGrammar (Just [' ', '\t', '\n']) PG.Start str
@@ -20,7 +21,8 @@ rules str = PRs.rules $ fromJust $ PT.parse PG.prologGrammar (Just [' ', '\t', '
 atom :: [PG.E] -> PRs.Atom PRs.Identifier PRs.Identifier PRs.Identifier
 atom str = PRs.rhead $ head $ rules str
 
-a = atom "member(X, l(a, l(a, l(c, e))))."
+a = atom "member2(X, l(a, l(a, l(b, l(c, l(c, e))))))."
+--a = atom "nat(X)."
 
 type C = ALT.AssocListTrie Char Int 
 
