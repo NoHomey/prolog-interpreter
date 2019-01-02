@@ -37,7 +37,7 @@ process nextId db l rules = tryMatch rules
     where g = head $ goal l
           vals = varsValues l
           id = rid l
-          g' = PRs.Atom {PRs.predSymbol = PRs.predSymbol g, PRs.terms = map (U.applySubstitution (U.substitution vals)) $ PRs.terms g}
+          g' = subs vals g
           tryMatch [] = backtrack nextId db
           tryMatch (r:rs) = case U.unify g (rename id (PRs.rhead r)) of
                                 Nothing -> tryMatch rs
@@ -50,7 +50,7 @@ process nextId db l rules = tryMatch rules
 
 resolutionStep :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> db (PRs.Rules p s v) -> State (ResolutionPath p s v) (Maybe (U.Unifier s (v, v)))
 resolutionStep nextId db = do
-                             p@(l:rs) <- get
+                             p@(l:_) <- get
                              if null $ goal l
                                then return $ Just $ varsValues l
                                else case KC.find db $ PRs.predSymbol $ head $ goal l of
