@@ -35,6 +35,8 @@ step g@(e@(a, b):es) = if a == b
                          then nextStep es Delete 
                          else case e of
                                   (Const _, Const _) -> Just (Check, g)
+                                  (Const _, Func _ _) -> Just (Check, g)
+                                  (Func _ _, Const _) -> Just (Check, g)
                                   (Const _, Var x) -> Just (Eliminate (x, a), es)
                                   (Func _ _, Var _) -> step $ (b, a):es
                                   (Var x, Func f p) -> Just $ if x `elem` (vars b)
@@ -44,9 +46,6 @@ step g@(e@(a, b):es) = if a == b
                                   (Func f p1, Func h p2) -> if (f /= h) || (((/=) `on` fArity) a b)
                                                               then Just (Conflict, g)
                                                               else nextStep ((zip p1 p2) ++ es) Decompose
-                                  e -> do
-                                         (reason, rs) <- step es
-                                         return (reason, e:rs)
     where nextStep ng tag = let rest = step ng
                             in if isNothing rest
                                  then Just (tag, ng)

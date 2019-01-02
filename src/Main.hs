@@ -12,7 +12,7 @@ import qualified Resolution as R
 import Control.Monad.State
 import Data.Maybe
 
-prog = "nat(z). nat(s(X)) :- nat(X)."
+prog = "member(X, l(X, T)). member(X, l(Y, T)) :- member(X, T)."
 
 rules :: [PG.E] -> PRs.Rules PRs.Identifier PRs.Identifier PRs.Identifier
 rules str = PRs.rules $ fromJust $ PT.parse PG.prologGrammar (Just [' ', '\t', '\n']) PG.Start str
@@ -20,7 +20,7 @@ rules str = PRs.rules $ fromJust $ PT.parse PG.prologGrammar (Just [' ', '\t', '
 atom :: [PG.E] -> PRs.Atom PRs.Identifier PRs.Identifier PRs.Identifier
 atom str = PRs.rhead $ head $ rules str
 
-a = atom "nat(X)."
+a = atom "member(X, l(a, l(a, l(c, e))))."
 
 type C = ALT.AssocListTrie Char Int 
 
@@ -34,6 +34,7 @@ main = do
     let (db, (preds@(_, predsCol), syms@(_, symsCol))) = PDB.createDataBase (+1) (+1) (+1) ((1, et), (1, et)) (1, et) rs :: (DT.DTrie Int (PRs.Rules Int Int Int), ((Int, C), (Int, C))) 
     let q = evalState mq (preds, syms, (1, et))
     let r = R.resolve (+1) 0 db q
+    print rs
     case fst r of
         Nothing -> print "No solution"
         Just u -> do

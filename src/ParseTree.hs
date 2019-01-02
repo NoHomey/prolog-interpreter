@@ -47,4 +47,5 @@ parseNonTerminal g ms n = parse $ N n
           isSkipTerminal _ = False
 
 parse :: (Eq t) => Grammar n t -> Maybe [t] -> n -> [t] -> Maybe (ParseTree n t)
-parse g ms s w = evalState (parseNonTerminal g ms s) w
+parse g ms s w = let (mt, w') = runState (parseNonTerminal g ms s) w
+                 in if not $ null w' then Nothing else mt
