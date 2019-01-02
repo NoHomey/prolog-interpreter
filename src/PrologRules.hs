@@ -9,7 +9,8 @@ module PrologRules (
     rules,
     fArity,
     pArity,
-    tmap
+    tmap,
+    mapTerm
 ) where
 
 import qualified Grammar as G
@@ -105,3 +106,9 @@ tmap f t = case t of
                (Var y) -> f y
                (Const c) -> Const c
                (Func s ps) -> Func {funcSymbol = s, params = map (tmap f) ps}
+
+mapTerm :: (a -> c) -> (b -> d) -> Term a b -> Term c d
+mapTerm f g t = case t of
+                       (Var x) -> (Var $ g x)
+                       (Const c) -> (Const $ f c)
+                       (Func s ps) -> Func {funcSymbol = f s, params = map (mapTerm f g) ps}

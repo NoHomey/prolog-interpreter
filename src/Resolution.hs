@@ -73,12 +73,12 @@ step q u rs id = ResolutionStep {goal = q, varsValues = u, options = rs, rid = i
 rename :: v -> PRs.Atom p s v -> PRs.Atom p s (v, v)
 rename id a = PRs.Atom {PRs.predSymbol = PRs.predSymbol a, PRs.terms = map (fmap (\x -> (id, x))) (PRs.terms a)}
 
-transform :: (Eq v) => v -> State (ResolutionPath p s v) (Maybe (U.Unifier s (v, v))) -> ResolutionPath p s v -> (Maybe [(v, PRs.Term s (v, v))], ResolutionPath p s v)
+transform :: (Eq v) => v -> State (ResolutionPath p s v) (Maybe (U.Unifier s (v, v))) -> ResolutionPath p s v -> (Maybe (U.Unifier s (v, v)), ResolutionPath p s v)
 transform id st path = let (u, p) = runState st path
-                       in (fmap (map (\((_, x), t) -> (x, t)) . filter ((id == ). fst . fst)) u, p) 
+                       in (fmap (filter ((id == ). fst . fst)) u, p) 
 
-resolve :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> v -> db (PRs.Rules p s v) -> Query p s v -> (Maybe [(v, PRs.Term s (v, v))], ResolutionPath p s v) 
+resolve :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> v -> db (PRs.Rules p s v) -> Query p s v -> (Maybe (U.Unifier s (v, v)), ResolutionPath p s v) 
 resolve nextId id db q = transform id (resolutionStep nextId db) [step (map (rename id) q) U.empty [] (nextId id)]
 
-next :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> v -> db (PRs.Rules p s v) -> ResolutionPath p s v -> (Maybe [(v, PRs.Term s (v, v))], ResolutionPath p s v)
+next :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => (v -> v) -> v -> db (PRs.Rules p s v) -> ResolutionPath p s v -> (Maybe (U.Unifier s (v, v)), ResolutionPath p s v)
 next nextId id db path = transform id (restart nextId db) path
