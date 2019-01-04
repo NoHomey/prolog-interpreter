@@ -5,13 +5,19 @@ module Trie (Trie, empty, insert, find) where
 
 import qualified KeyedCollection as KC
 import qualified KeyToPath as KP
+import qualified Empty as E
+import Data.Maybe
 
 data Trie c k p v = Node {value :: Maybe v, children :: c (Trie c k p v)}
 
-instance (Ord p, KP.KeyToPath k p, KC.KeyedCollection c p) => KC.KeyedCollection (Trie c k p) k where
+instance (E.Empty k, Ord p, KP.KeyToPath k p, KC.KeyedCollection c p) => KC.KeyedCollection (Trie c k p) k where
     empty = empty
     find = find
     insert = insert
+    assoc t = let cs = [(KP.prepend l k, v) | (l, ct) <- KC.assoc $ children t, (k, v) <- KC.assoc ct]
+                  mv = value t
+                  c = if isJust $ mv then [(KP.empty, fromJust mv)] else []
+              in c ++ cs
 
 instance (Functor c) => Functor (Trie c k p) where
     fmap f t = Node {value = fmap f (value t), children = fmap (fmap f) (children t)}

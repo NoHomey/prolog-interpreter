@@ -11,6 +11,7 @@ instance Ord k =>  KeyedCollection (AssocList k) k where
     empty = cast []
     find al k = sortedFind (assocList al) k
     insert al k v = cast $ sortedInsert (assocList al) k v
+    assoc = assocList
 
 instance Functor (AssocList k) where
     fmap f = cast . map (fmap f) . assocList

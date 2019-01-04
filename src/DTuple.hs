@@ -1,8 +1,17 @@
-module DTuple (Digit(..), DTuple, select, set, fill, toDigits) where
+module DTuple (
+    Digit(..),
+    DTuple,
+    select,
+    set,
+    fill,
+    toDigit,
+    fromDigit,
+    toDigits
+) where
 
 import Debug.Trace
 
-data Digit = D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9 deriving (Eq, Ord)
+data Digit = D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9 deriving (Eq, Ord, Enum, Bounded)
 
 newtype DTuple a = DTuple {tuple :: (a, a, a, a, a, a, a, a, a, a)}
 
@@ -52,6 +61,19 @@ toDigit d = case d of
                 8 -> D8
                 d -> D9
 
+fromDigit :: Integral i => Digit -> i
+fromDigit d = case d of
+                D0 -> 0
+                D1 -> 1
+                D2 -> 2
+                D3 -> 3
+                D4 -> 4
+                D5 -> 5
+                D6 -> 6
+                D7 -> 7
+                D8 -> 8
+                D9 -> 9
+    
 rdigits :: Integral i => i -> [Digit]
 rdigits d = if d  < 10
               then [toDigit d]
