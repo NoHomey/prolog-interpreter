@@ -2,22 +2,21 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module KeyToPath (
-    Empty,
     KeyToPath,
-    empty,
+    promote,
     toPath,
     append,
     prepend
 ) where
 
-import Empty
-
-class Empty k => KeyToPath k c where
+class KeyToPath k c where
+    promote :: c -> k
     toPath :: k -> [c]
     append :: k -> c -> k
     prepend :: c -> k -> k
 
 instance KeyToPath [a] a where
+    promote x = [x]
     toPath = id
     append l x = l ++ [x]
     prepend x l = x:l
