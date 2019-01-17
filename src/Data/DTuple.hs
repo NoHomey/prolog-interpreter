@@ -1,4 +1,4 @@
-module DTuple (
+module Data.DTuple (
     Digit(..),
     DTuple,
     select,
@@ -6,10 +6,9 @@ module DTuple (
     fill,
     toDigit,
     fromDigit,
-    toDigits
+    toDigits,
+    fromDigits
 ) where
-
-import Debug.Trace
 
 data Digit = D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9 deriving (Eq, Ord, Enum, Bounded)
 
@@ -81,3 +80,6 @@ rdigits d = if d  < 10
 
 toDigits :: Integral i => i -> [Digit]
 toDigits = reverse . rdigits . abs
+
+fromDigits :: Integral i => [Digit] -> i
+fromDigits = foldl (\z d -> 10 * z + (fromDigit d)) 0

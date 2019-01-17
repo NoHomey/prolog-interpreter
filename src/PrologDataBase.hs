@@ -17,8 +17,8 @@ module PrologDataBase (
 ) where
 
 import PrologRules
-import qualified KeyedCollection as KC
-import KeyToPath
+import qualified Data.KeyedCollection as KC
+import Data.KeyToPath
 import Control.Monad.State
 
 type TransformState predsC symsC varsC a b c d = State ((a, predsC a), (b, symsC b), (c, varsC c)) d 

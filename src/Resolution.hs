@@ -5,7 +5,7 @@ module Resolution (
     next
 ) where
 
-import qualified KeyedCollection as KC
+import qualified Data.KeyedCollection as KC
 import qualified PrologRules as PRs
 import qualified Unifier as U
 import Control.Monad.State

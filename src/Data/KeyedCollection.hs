@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
 
-module KeyedCollection where
+module Data.KeyedCollection where
 
 class KeyedCollection c k | c -> k where
     empty :: c v

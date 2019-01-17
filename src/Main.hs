@@ -4,18 +4,18 @@ import qualified ParseTree as PT
 import qualified PrologGrammar as PG
 import qualified PrologRules as PRs
 import qualified Unifier as U
-import qualified DTrie as DT
-import qualified KeyedCollection as KC
-import qualified AssocList as AL
-import qualified AssocListTrie as ALT
 import qualified PrologDataBase as PDB
 import qualified Resolution as R
+import qualified Data.DTrie as DT
+import qualified Data.KeyedCollection as KC
+import qualified Data.AssocListTrie as ALT
 import Control.Monad.State
 import Data.Maybe
 import Data.List
 
 --prog = "member2(X, l(X, l(X, T))). member2(X, l(Y, T)) :- member2(X, T)."
-prog = "nat(zero). nat(X) :- nat(Y), is(X, succ(Y)). is(X, X)."
+--prog = "nat(zero). nat(X) :- nat(Y), is(X, succ(Y)). is(X, X)."
+prog = "p(david, jhon). p(jim, david). p(steve, jim). p(elvis, steve). a(A, B) :- p(A, B). a(A, B) :- p(A, X), a(X, B)."
 
 rules :: [PG.E] -> PRs.Rules PRs.Identifier PRs.Identifier PRs.Identifier
 rules str = PRs.rules $ fromJust $ PT.parse PG.prologGrammar (Just [' ', '\t', '\n']) PG.Start str
@@ -24,7 +24,8 @@ atom :: [PG.E] -> PRs.Atom PRs.Identifier PRs.Identifier PRs.Identifier
 atom str = PRs.rhead $ head $ rules str
 
 --a = atom "member2(X, l(a, l(a, l(b, l(c, l(c, e))))))."
-a = atom "nat(X)."
+--a = atom "nat(X)."
+a = atom "a(elvis, X)."
 
 type C = ALT.AssocListTrie PG.E Int 
 et :: C
