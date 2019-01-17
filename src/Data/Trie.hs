@@ -20,13 +20,10 @@ instance (Ord s, KP.KeyToPath k s, KC.KeyedCollection c s) => KC.KeyedCollection
               removeRoot al          = al
 
 instance (Functor c) => Functor (Trie c k s) where
-    fmap f t = node (fmap f $ value t) $ fmap (fmap f) $ children t
-
-node :: Maybe v -> c (Trie c k s v) -> Trie c k s v
-node mv children = Node {value = mv, children = children}
+    fmap f t = Node (fmap f $ value t) $ fmap (fmap f) $ children t
 
 empty :: (KP.KeyToPath k s, KC.KeyedCollection c s) => Trie c k s v
-empty = node Nothing KC.empty
+empty = Node Nothing KC.empty
 
 findChild :: (Eq s, KP.KeyToPath k s, KC.KeyedCollection c s) => Trie c k s v -> s -> Maybe (Trie c k s v)
 findChild = KC.find . children
@@ -38,8 +35,8 @@ insertIntoChildren :: (Ord s, KP.KeyToPath k s, KC.KeyedCollection c s) => Trie 
 insertIntoChildren = KC.insert . children 
 
 insertPath :: (Ord s, KP.KeyToPath k s, KC.KeyedCollection c s) => Trie c k s v -> [s] -> v -> Trie c k s v
-insertPath t []     v = node (Just v) $ children t
-insertPath t (x:xs) v = node (value t) $ insertIntoChildren t x $ insertPath (getChild t x) xs v
+insertPath t []     v = Node (Just v) $ children t
+insertPath t (x:xs) v = Node (value t) $ insertIntoChildren t x $ insertPath (getChild t x) xs v
 
 findPath :: (Eq s, KP.KeyToPath k s, KC.KeyedCollection c s) => Trie c k s v -> [s] -> Maybe v
 findPath t []     = value t

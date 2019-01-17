@@ -8,16 +8,13 @@ import Data.KeyedCollection
 newtype AssocList k v = AssocList {assocList :: [(k, v)]}
 
 instance Ord k =>  KeyedCollection (AssocList k) k where
-    empty = cast []
+    empty = AssocList []
     find = sortedFind . assocList
-    insert al k v = cast $ sortedInsert (assocList al) k v
+    insert al k v = AssocList $ sortedInsert (assocList al) k v
     assoc = assocList
 
 instance Functor (AssocList k) where
-    fmap f = cast . map (fmap f) . assocList
-
-cast :: [(k, v)] -> AssocList k v
-cast al = AssocList {assocList = al}
+    fmap f = AssocList . map (fmap f) . assocList
 
 sortedFind :: (Eq k) => [(k, v)] -> k -> Maybe v
 sortedFind []          _ = Nothing
