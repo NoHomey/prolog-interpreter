@@ -20,13 +20,3 @@ update (line, symbol) t = if t == '\n'
                             
 parse :: NonTerminal -> [Terminal] -> Either [Counter] [ParseTree]
 parse = PT.parse grammar update (1, 1)
-
-{--res = parse Start "nat(zero). nat(X) :- nat(Y), is(X, succ(Y)). is(X, X)."
-
-main = case res of
-           (Left es) -> do
-                          print "Erros:"
-                          print es
-           (Right ps) -> do
-                           print "Parsed:"
-                           print $ head ps--}

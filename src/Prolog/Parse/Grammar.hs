@@ -1,6 +1,7 @@
 module Prolog.Parse.Grammar (
     NonTerminal(..),
     Terminal,
+    whiteSpaceSymbols,
     grammar
 ) where
 
@@ -48,16 +49,16 @@ choiceRule ns = G.Rule [[G.NonTerminal n] | n <- ns]
 listRule :: n -> n -> n -> G.Rule n t
 listRule n s r = G.Rule [[G.NonTerminal n, G.Skip s, G.NonTerminal r], [G.NonTerminal n]]
 
-prefixRule :: n -> n -> G.Rule n t
-prefixRule p r = G.Rule [[G.NonTerminal p, G.NonTerminal r], [G.NonTerminal p]]
-
 terminalRule :: [t] -> G.Rule n t
 terminalRule ts = G.Rule [[G.Terminal t] | t <- ts]
 
 whiteSpaceSkip :: n -> t -> G.Rule n t
-whiteSpaceSkip s t = G.Rule [[G.Skip s, G.Terminal t, G.Skip s], [G.Skip s, G.Terminal t], [G.Terminal t, G.Skip s], [G.Terminal t]]
+whiteSpaceSkip s t = G.Rule [[G.Terminal t, G.Skip s], [G.Terminal t]]
 
-start = alternativeRecursiveRule Fact Rule Start
+start = G.Rule [[G.NonTerminal Rule, G.NonTerminal Start]
+               ,[G.NonTerminal Fact, G.NonTerminal Start]
+               ,[G.NonTerminal Rule, G.End]
+               ,[G.NonTerminal Fact, G.End]]
 
 fact = singleChoiceRule [G.NonTerminal Atom, G.Skip Dot]
 
@@ -75,9 +76,15 @@ func = singleChoiceRule [G.NonTerminal Identifier, G.Skip LeftParenthesis, G.Non
 
 const = choiceRule [Identifier]
 
-identifier = prefixRule LowerCaseLetter LetterOrDigit
+identifier = G.Rule [[G.NonTerminal LowerCaseLetter, G.NonTerminal LetterOrDigit]
+                    ,[G.NonTerminal LowerCaseLetter]
+                    ,[G.NonTerminal LowerCaseLetter, G.NonTerminal LetterOrDigit, G.Skip WhiteSpaces]
+                    ,[G.NonTerminal LowerCaseLetter, G.Skip WhiteSpaces]]
 
-var = prefixRule UpperCaseLetter LetterOrDigit
+var = G.Rule [[G.NonTerminal UpperCaseLetter, G.NonTerminal LetterOrDigit]
+             ,[G.NonTerminal UpperCaseLetter]
+             ,[G.NonTerminal UpperCaseLetter, G.NonTerminal LetterOrDigit, G.Skip WhiteSpaces]
+             ,[G.NonTerminal UpperCaseLetter, G.Skip WhiteSpaces]]
 
 letterOrDigit = alternativeRecursiveRule Letter Digit LetterOrDigit
 
@@ -101,9 +108,11 @@ dash = whiteSpaceSkip WhiteSpaces '-'
 
 dots = whiteSpaceSkip WhiteSpaces ':'
 
-whiteSpaces = recursiveRule WhiteSpace WhiteSpaces
+whiteSpaces = G.Rule [[G.Skip WhiteSpace, G.Skip WhiteSpaces], [G.Skip WhiteSpace]]
 
-whiteSpace = terminalRule ['\n', '\t', ' ']
+whiteSpaceSymbols = ['\n', '\t', ' ']
+
+whiteSpace = terminalRule whiteSpaceSymbols
 
 ruleFor :: NonTerminal -> G.Rule NonTerminal Terminal
 ruleFor Start            = start
