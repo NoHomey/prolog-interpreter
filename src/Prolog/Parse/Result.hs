@@ -4,6 +4,7 @@ module Prolog.Parse.Result (
     Terms,
     Atom,
     Atoms,
+    Query,
     Rule,
     Rules,
     rules,
@@ -24,6 +25,8 @@ type Terms = [Term]
 type Atom = T.Atom Identifier Identifier Identifier
 
 type Atoms = [Atom]
+
+type Query = Atoms
 
 type Rule = T.Rule Identifier Identifier Identifier
 
@@ -78,5 +81,5 @@ rule r = case PT.symbol r of
 rules :: PT.ParseTree -> Rules
 rules = recTransform rule
 
-query :: PT.ParseTree -> Atoms
+query :: PT.ParseTree -> Query
 query = atoms

@@ -3,6 +3,7 @@ module Prolog.Types (
     Terms,
     Atom(..),
     Atoms,
+    Query,
     Rule(..),
     Rules
 ) where
@@ -18,6 +19,8 @@ type Terms s v = [Term s v]
 data Atom p s v = Atom {predSymbol :: p, terms :: Terms s v} deriving (Eq)
 
 type Atoms p s v = [Atom p s v]
+
+type Query p s v = Atoms p s v
 
 data Rule p s v = Rule {ruleHead :: Atom p s v, body :: Atoms p s v} deriving (Eq)
 
