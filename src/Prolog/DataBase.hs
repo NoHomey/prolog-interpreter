@@ -80,8 +80,8 @@ createDataBase :: (Eq p', Eq p, Eq s, Eq v, KC.KeyedCollection predsC p, KC.Keye
                -> (rulesC (T.Rules p' s' v'), (RenameInfo p' predsC, RenameInfo s' symsC))
 createDataBase np ns nv st v rs = let m = mapM (renameRule np ns nv v) rs
                                       (rs', st') = S.runState m st
-                                  in (insertIntoDB rs', st')
-    where insertIntoDB rs = fmap reverse $ S.execState (mapM_ insertRule rs) KC.empty
+                                  in (dataBase rs', st')
+    where dataBase rs = fmap reverse $ S.execState (mapM_ insertRule rs) KC.empty
           insertRule r = S.state $ \db -> let p = T.predSymbol $ T.ruleHead r
                                           in ((), KC.insert db p $ addRuleToDB db p r)
           addRuleToDB db p r = case KC.find db p of
