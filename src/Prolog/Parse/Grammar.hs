@@ -8,6 +8,7 @@ module Prolog.Parse.Grammar (
 import qualified Parse.Grammar as G
 
 data NonTerminal = Start
+                 | Query
                  | Identifier
                  | Var
                  | Const
@@ -59,6 +60,9 @@ start = G.Rule [[G.NonTerminal Rule, G.NonTerminal Start]
                ,[G.NonTerminal Fact, G.NonTerminal Start]
                ,[G.NonTerminal Rule, G.End]
                ,[G.NonTerminal Fact, G.End]]
+
+query = G.Rule [[G.NonTerminal Atom, G.Skip Comma, G.NonTerminal Query]
+               ,[G.NonTerminal Atom, G.Skip Dot, G.End]]
 
 fact = singleChoiceRule [G.NonTerminal Atom, G.Skip Dot]
 
@@ -116,6 +120,7 @@ whiteSpace = terminalRule whiteSpaceSymbols
 
 ruleFor :: NonTerminal -> G.Rule NonTerminal Terminal
 ruleFor Start            = start
+ruleFor Query            = query
 ruleFor Fact             = fact
 ruleFor Rule             = rule
 ruleFor Atom             = atom
