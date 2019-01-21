@@ -42,7 +42,9 @@ substitutionFuncFromSubstitution :: (Eq v) => Substitution s v -> SubstitutionFu
 substitutionFuncFromSubstitution s x = fmap (substitute (substitutionFuncFromSubstitution s) . snd) $ find ((x ==) . fst) s
 
 compose :: (Eq v) => Substitution s v -> Substitution s v -> Substitution s v
-compose uf ug = (map (fmap $ substitute $ substitutionFuncFromSubstitution uf) ug) ++ (filter (isNothing . substitutionFuncFromSubstitution ug . fst) uf)
+compose uf ug = let composed = map (fmap $ substitute $ substitutionFuncFromSubstitution uf) ug
+                    notIncluded = filter (isNothing . substitutionFuncFromSubstitution ug . fst) uf
+                in composed ++ notIncluded
 
 tryUnify :: (Eq s, Eq v) => Equations s v -> Maybe (Substitution s v)
 tryUnify []            = Just empty
