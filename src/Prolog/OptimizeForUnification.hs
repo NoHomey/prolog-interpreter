@@ -14,7 +14,7 @@ module Prolog.OptimizeForUnification (
 import qualified Prolog.Types as T
 import qualified Data.KeyedCollection as KC
 
-data ArityIdentifier a = ArityIdentifier {identifier :: a, arity :: Int}
+data ArityIdentifier a = ArityIdentifier {identifier :: a, arity :: Int} deriving (Eq)
 
 type Term s v = T.Term (ArityIdentifier s) v
 
