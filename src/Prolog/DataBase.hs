@@ -1,4 +1,5 @@
 module Prolog.DataBase (
+    Next,
     RenameInfo,
     renameQuery,
     createDataBase
@@ -64,11 +65,12 @@ renameQuery :: (Eq p, Eq s, Eq v, KC.KeyedCollection predsC p, KC.KeyedCollectio
             => Next p'
             -> Next s'
             -> Next v'
+            -> (RenameInfo p' predsC, RenameInfo s' symsC, RenameInfo v' varsC)
             -> T.Query p s v
-            -> S.State (RenameInfo p' predsC, RenameInfo s' symsC, RenameInfo v' varsC) (T.Query p' s' v')
-renameQuery nextPred nextSym nextVar q = S.state $ \st@(p, _, _) -> let m = mapM (renameAtom nextPred nextSym nextVar) q
-                                                                        (q', (_, s', v')) = S.runState m st
-                                                                    in (q', (p, s', v'))
+            -> (T.Query p' s' v', (RenameInfo p' predsC, RenameInfo s' symsC, RenameInfo v' varsC))
+renameQuery nextPred nextSym nextVar st@(p, _, _) q = let m = mapM (renameAtom nextPred nextSym nextVar) q
+                                                          (q', (_, s', v')) = S.runState m st
+                                                      in (q', (p, s', v'))
 
 createDataBase :: (Eq p', Eq p, Eq s, Eq v, KC.KeyedCollection predsC p, KC.KeyedCollection symsC s, KC.KeyedCollection varsC v, KC.KeyedCollection rulesC p', Functor rulesC)
                => Next p'
