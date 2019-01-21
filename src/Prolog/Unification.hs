@@ -4,6 +4,9 @@ module Prolog.Unification (
      empty,
      vars,
      substitute,
+     substitutionFuncForVar,
+     substitutionFuncFromSubstitution,
+     compose,
      unify
 ) where
 
@@ -37,6 +40,9 @@ substitutionFuncForVar x t y = if x == y then Just t else Nothing
 
 substitutionFuncFromSubstitution :: (Eq v) => Substitution s v -> SubstitutionFunc s v
 substitutionFuncFromSubstitution s x = fmap (substitute (substitutionFuncFromSubstitution s) . snd) $ find ((x ==) . fst) s
+
+compose :: (Eq v) => Substitution s v -> Substitution s v -> Substitution s v
+compose uf ug = (map (fmap $ substitute $ substitutionFuncFromSubstitution uf) ug) ++ (filter (isNothing . substitutionFuncFromSubstitution ug . fst) uf)
 
 tryUnify :: (Eq s, Eq v) => Equations s v -> Maybe (Substitution s v)
 tryUnify []            = Just empty
