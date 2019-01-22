@@ -35,6 +35,8 @@ type Substitution = U.Substitution Identifier (Identifier, Identifier)
 
 type ResolutionPath = Res.ResolutionPath Identifier Identifier Identifier
 
+type ResolutionResult = (Maybe Substitution, ResolutionPath)
+
 nextIdentifier :: NextIdentifier
 nextIdentifier = (+1)
 
@@ -50,8 +52,11 @@ pipelineForDB = PTOU.pipelineForDataBase nextIdentifier nextIdentifier nextIdent
 pipelineForQuery :: QueryRenameInfo -> [G.Terminal] -> Either PTOU.ParseError (Query, QueryRenameInfo)
 pipelineForQuery = PTOU.pipelineForQuery nextIdentifier nextIdentifier nextIdentifier
 
-resolve :: DataBase -> Query -> (Maybe Substitution, ResolutionPath)
+resolve :: DataBase -> Query -> ResolutionResult
 resolve = Res.resolve nextIdentifier initialIdentifier
+
+next :: DataBase -> ResolutionPath -> ResolutionResult
+next = Res.next nextIdentifier initialIdentifier
 
 unmapVar :: RenameCollection -> (Identifier, Identifier) -> PR.Identifier
 unmapVar varsC = varToIdentifier $ KC.assoc varsC
@@ -77,17 +82,50 @@ printSolution symsC varsC s = let idVar = unmapVar varsC
                               in do
                                     print "Found solution."
                                     print "answers:"
-                                    mapM_ (\(v, t) -> print $ v ++ " = " ++ (showTermWithIdentifiers t)) identified
+                                    if null identified
+                                      then print "No answers."
+                                      else mapM_ (\(v, t) -> print $ v ++ " = " ++ (showTermWithIdentifiers t)) identified
+
+askForMore :: DataBase -> RenameCollection -> RenameCollection -> ResolutionPath -> IO()
+askForMore db symsC varsC p = do
+                                print "Should I try to find more solutions? [y/n]"
+                                let askAgain = askForMore db symsC varsC p
+                                l <- getLine
+                                if null l
+                                  then askAgain
+                                  else let c = head l
+                                       in case c of
+                                              'y' -> tryFindMore
+                                              'Y' -> tryFindMore
+                                              'n' -> return ()
+                                              'N' -> return ()
+                                              c -> askAgain
+    where tryFindMore = result db symsC varsC $ next db p
+
+result :: DataBase -> RenameCollection -> RenameCollection -> ResolutionResult -> IO()
+result db symsC varsC res = case res of
+                                    (Nothing, _) -> print "No solution."
+                                    (Just sub, p) -> do
+                                                       printSolution symsC varsC sub
+                                                       {--print ()
+                                                       print p
+                                                       print ()--}
+                                                       askForMore db symsC varsC p
 
 printInfo :: (DataBase, Query, QueryRenameInfo) -> IO()
-printInfo (db, q, ((p, predsC), (s, symsC), (v, varsC))) = case resolve db q of
-                                                               (Nothing, _) -> print "No solution."
-                                                               (Just sub, p) -> printSolution symsC varsC sub
+printInfo (db, q, ((p, predsC), (s, symsC), (v, varsC))) = result db symsC varsC $ resolve db q
 
+--content = "f(a). f(b). g(a). g(b). h(b). k(X) :- f(X), g(X), h(X)."
+--content = "nat(zero). nat(X) :- nat(Y), is(X, succ(Y)). is(X, X)."
+--content = "l(v, m). l(h, m). j(X, Y) :- l(X, Z), l(Y, Z)."
+--content = "m(X, l(X, T)). m(X, l(H, T)) :- m(X, T)."
+content = "f(j, b). f(j, s). f(s, c). f(c, a). f(s, t). g(X, Z) :- f(X, Y), f(Y, Z)."
 
-content = "nat(zero). nat(X) :- nat(Y), is(X, succ(Y)). is(X, X)."
-
-prompt = "nat(X)."
+--prompt = "k(Y)."
+--prompt = "nat(X)."
+--prompt = "j(X, Y)."
+--prompt = "m(Z, l(a, l(b, null))), m(Z, l(b, l(c, null)))."
+prompt = "g(G, X)."
 
 test :: Either PTOU.ParseError (DataBase, Query, QueryRenameInfo)
 test = do

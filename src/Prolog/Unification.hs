@@ -6,6 +6,7 @@ module Prolog.Unification (
      substitute,
      substitutionFuncForVar,
      substitutionFuncFromSubstitution,
+     substituteWithSubstitution,
      compose,
      unify
 ) where
@@ -38,13 +39,23 @@ substitute s (T.Func f ps) = T.Func f $ map (substitute s) ps
 substitutionFuncForVar :: (Eq v) => v -> OU.Term s v -> SubstitutionFunc s v
 substitutionFuncForVar x t y = if x == y then Just t else Nothing
 
+substitutesVar :: (Eq v) => Substitution s v -> v -> Maybe (OU.Term s v)
+substitutesVar s x = fmap snd $ find ((x ==) . fst) s
+
 substitutionFuncFromSubstitution :: (Eq v) => Substitution s v -> SubstitutionFunc s v
-substitutionFuncFromSubstitution s x = fmap (substitute (substitutionFuncFromSubstitution s) . snd) $ find ((x ==) . fst) s
+substitutionFuncFromSubstitution s x = fmap (substituteWithSubstitution s) $ substitutesVar s x
+
+substituteWithSubstitution :: (Eq v) => Substitution s v -> OU.Term s v -> OU.Term s v
+substituteWithSubstitution s = substitute (substitutionFuncFromSubstitution s)
 
 compose :: (Eq v) => Substitution s v -> Substitution s v -> Substitution s v
-compose uf ug = let composed = map (fmap $ substitute $ substitutionFuncFromSubstitution uf) ug
-                    notIncluded = filter (isNothing . substitutionFuncFromSubstitution ug . fst) uf
+compose uf ug = let composed = filter isNotIdentity $ map (fmap $ substituteWithSubstitution uf) ug
+                    notIncluded = filter (isNothing . substitutesVar ug . fst) uf
                 in composed ++ notIncluded
+     where isNotIdentity (x, t) = case t of
+                                      (T.Var y) -> x /= y
+                                      t -> True
+           
 
 tryUnify :: (Eq s, Eq v) => Equations s v -> Maybe (Substitution s v)
 tryUnify []            = Just empty
@@ -68,5 +79,5 @@ unify :: (Eq p, Eq s, Eq v) => OU.Atom p s v -> OU.Atom p s v -> Maybe (Substitu
 unify a b = do
               guard $ ((==) `on` T.predSymbol) a b
               s <- tryUnify $ (zip `on` T.terms) a b
-              let sub = substitute (substitutionFuncFromSubstitution s) 
+              let sub = substituteWithSubstitution s 
               return $ map (bimap id sub) s
