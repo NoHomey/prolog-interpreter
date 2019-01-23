@@ -139,8 +139,8 @@ createDataBase ::
 createDataBase np ns nv st v rs = let m = mapM (renameRule np ns nv v) rs
                                   in bimap dataBase id $ S.runState m st
     where dataBase rs = fmap reverse $ S.execState (mapM_ insertRule rs) KC.empty
-          insertRule r = do
-                           let p = T.predSymbol $ T.ruleHead r
-                           db <- S.get
-                           S.put $ KC.insert db p $ addRuleToDB db p r
+          insertRule r = let p = T.predSymbol $ T.ruleHead r
+                         in do
+                              db <- S.get
+                              S.put $ KC.insert db p $ addRuleToDB db p r
           addRuleToDB db p r = maybe [r] (r:) $ KC.find db p
