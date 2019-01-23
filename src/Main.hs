@@ -115,22 +115,22 @@ result db symsC varsC res = case res of
 printInfo :: (DataBase, Query, QueryRenameInfo) -> IO()
 printInfo (db, q, ((p, predsC), (s, symsC), (v, varsC))) = result db symsC varsC $ resolve db q
 
---content = "f(a). f(b). g(a). g(b). h(b). k(X) :- f(X), g(X), h(X)."
---content = "nat(zero). nat(X) :- nat(Y), is(X, succ(Y)). is(X, X)."
---content = "l(v, m). l(h, m). j(X, Y) :- l(X, Z), l(Y, Z)."
---content = "m(X, l(X, T)). m(X, l(H, T)) :- m(X, T)."
-content = "f(j, b). f(j, s). f(s, c). f(c, a). f(s, t). g(X, Z) :- f(X, Y), f(Y, Z)."
+c1 = "f(a). f(b). g(a). g(b). h(b). k(X) :- f(X), g(X), h(X)."
+c2 = "nat(zero). nat(X) :- nat(Y), is(X, succ(Y)). is(X, X)."
+c3 = "l(v, m). l(h, m). j(X, Y) :- l(X, Z), l(Y, Z)."
+c4 = "m(X, l(X, T)). m(X, l(H, T)) :- m(X, T)."
+c5 = "f(j, b). f(j, s). f(s, c). f(c, a). f(s, t). g(X, Z) :- f(X, Y), f(Y, Z)."
 
---prompt = "k(Y)."
---prompt = "nat(X)."
---prompt = "j(X, Y)."
---prompt = "m(Z, l(a, l(b, null))), m(Z, l(b, l(c, null)))."
-prompt = "g(G, X)."
+p1 = "k(Y)."
+p2 = "nat(X)."
+p3 = "j(X, Y)."
+p4 = "m(Z, l(a, l(b, null))), m(Z, l(b, l(c, null)))."
+p5 = "g(G, X)."
 
-test :: Either PTOU.ParseError (DataBase, Query, QueryRenameInfo)
-test = do
-         (db, (preds, syms)) <- pipelineForDB content
-         (query, info) <- pipelineForQuery (preds, syms, initialRenameInfo) prompt
-         return (db, query, info)
+test :: ([G.Terminal], [G.Terminal]) -> Either PTOU.ParseError (DataBase, Query, QueryRenameInfo)
+test (content, prompt) = do
+                           (db, (preds, syms)) <- pipelineForDB content
+                           (query, info) <- pipelineForQuery (preds, syms, initialRenameInfo) prompt
+                           return (db, query, info)
                                 
-main = either print printInfo test
+main = mapM_ (either print printInfo . test) $ zip [c1, c2, c3, c4, c5] [p1, p2, p3, p4, p5]

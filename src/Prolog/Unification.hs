@@ -8,6 +8,7 @@ module Prolog.Unification (
      substitutionFuncFromSubstitution,
      substituteWithSubstitution,
      compose,
+     substituteTerms,
      unify
 ) where
 
@@ -55,7 +56,9 @@ compose uf ug = let composed = filter isNotIdentity $ map (fmap $ substituteWith
      where isNotIdentity (x, t) = case t of
                                       (T.Var y) -> x /= y
                                       t -> True
-           
+
+substituteTerms :: (Eq v) => Substitution s v -> OU.Atom p s v -> OU.Atom p s v
+substituteTerms s (T.Atom p ts) = T.Atom p $ map (substituteWithSubstitution s) ts
 
 tryUnify :: (Eq s, Eq v) => Equations s v -> Maybe (Substitution s v)
 tryUnify []            = Just empty
