@@ -9,6 +9,9 @@ import qualified Prolog.Types as T
 import qualified Control.Monad.State as S
 import qualified Data.KeyedCollection as KC
 import FunctorM
+import Data.Maybe
+import Data.Bifunctor
+import Trifunctor
 
 type Next a = a -> a
 
@@ -16,76 +19,128 @@ type RenameInfo a c = (a, c a)
 
 type Rename a c = (a, RenameInfo a c)
 
+type RenameState p s v r = S.State (p, s, v) r
+
+type AtomRenameInfo p predsC s symsC v varsC = (RenameInfo p predsC, RenameInfo s symsC, RenameInfo v varsC)
+
+type RuleRenameInfo p predsC s symsC = (RenameInfo p predsC, RenameInfo s symsC)
+
+type AtomRenameState p predsC s symsC v varsC t = S.State (AtomRenameInfo p predsC s symsC v varsC) (t p s v)
+
+type RenameRuleState p predsC s symsC v = S.State (RuleRenameInfo p predsC s symsC) (T.Rule p s v)
+
+type RenamedQueryInfo p predsC s symsC v varsC = (T.Query p s v, AtomRenameInfo p predsC s symsC v varsC)
+
+type DataBaseInfo db p predsC s symsC v = (db (T.Rules p s v), RuleRenameInfo p predsC s symsC)
+
 rename :: (Eq a, KC.KeyedCollection c a) => Next b -> RenameInfo b c -> a -> Rename b c
-rename next (last, info) id = case KC.find info id of
-                                  Nothing -> result last (next last) $ KC.insert info id last
-                                  (Just renamed) -> result renamed last info
-    where result renamed next info = (renamed, (next, info))
+rename next info id = maybe (makeRename info) (renameInfo info) $ KC.find (snd info) id
+    where makeRename (last, known) = (last, (next last, KC.insert known id last))
+          renameInfo = flip (,)
 
-renamePred :: (Eq p, KC.KeyedCollection predsC p) => Next p' -> p -> S.State (RenameInfo p' predsC, s, v) p'
-renamePred nextPred id = S.state $ \(p, s, v) -> let (r, p') = rename nextPred p id
-                                                 in (r, (p', s, v))
+renamePred :: (Eq p, KC.KeyedCollection predsC p) => Next p' -> p -> RenameState (RenameInfo p' predsC) s v p'
+renamePred nextPred sym = S.state $ \(p, s, v) -> bimap id (\p' -> (p', s, v)) $ rename nextPred p sym
 
-renameSym :: (Eq s, KC.KeyedCollection symsC s) => Next s' -> s -> S.State (p, RenameInfo s' symsC, v) s'
-renameSym nextSym id = S.state $ \(p, s, v) -> let (r, s') = rename nextSym s id
-                                               in (r, (p, s', v))
+renameSym :: (Eq s, KC.KeyedCollection symsC s) => Next s' -> s -> RenameState p (RenameInfo s' symsC) v s'
+renameSym nextSym sym = S.state $ \(p, s, v) -> bimap id (\s' -> (p, s', v)) $ rename nextSym s sym
 
-renameVar :: (Eq v, KC.KeyedCollection varsC v) => Next v' -> v -> S.State (p, s, RenameInfo v' varsC) v'
-renameVar nextVar id = S.state $ \(p, s, v) -> let (r, v') = rename nextVar v id
-                                               in (r, (p, s, v'))
+renameVar :: (Eq v, KC.KeyedCollection varsC v) => Next v' -> v -> RenameState p s (RenameInfo v' varsC) v'
+renameVar nextVar x = S.state $ \(p, s, v) -> bimap id (\v' -> (p, s, v')) $ rename nextVar v x
 
-renameType :: (Eq p, Eq s, Eq v, KC.KeyedCollection predsC p, KC.KeyedCollection symsC s, KC.KeyedCollection varsC v, TrifunctorM t)
+renameType ::
+           ( Eq p
+           , Eq s
+           , Eq v
+           , KC.KeyedCollection predsC p
+           , KC.KeyedCollection symsC s
+           , KC.KeyedCollection varsC v
+           , TrifunctorM t
+           )
            => Next p'
            -> Next s'
            -> Next v'
            -> t p s v
-           -> S.State (RenameInfo p' predsC, RenameInfo s' symsC, RenameInfo v' varsC) (t p' s' v')
+           -> AtomRenameState p' predsC s' symsC v' varsC t
 renameType nextPred nextSym nextVar = trimapM (renamePred nextPred) (renameSym nextSym) (renameVar nextVar)
 
-renameAtom :: (Eq p, Eq s, Eq v, KC.KeyedCollection predsC p, KC.KeyedCollection symsC s, KC.KeyedCollection varsC v)
+renameAtom ::
+           ( Eq p
+           , Eq s
+           , Eq v
+           , KC.KeyedCollection predsC p
+           , KC.KeyedCollection symsC s
+           , KC.KeyedCollection varsC v
+           )
            => Next p'
            -> Next s'
            -> Next v'
            -> T.Atom p s v
-           -> S.State (RenameInfo p' predsC, RenameInfo s' symsC, RenameInfo v' varsC) (T.Atom p' s' v')
+           -> AtomRenameState p' predsC s' symsC v' varsC T.Atom
 renameAtom = renameType
 
-renameRule :: (Eq p, Eq s, Eq v, KC.KeyedCollection predsC p, KC.KeyedCollection symsC s, KC.KeyedCollection varsC v)
+renameRule ::
+           ( Eq p
+           , Eq s
+           , Eq v
+           , KC.KeyedCollection predsC p
+           , KC.KeyedCollection symsC s
+           , KC.KeyedCollection varsC v
+           )
            => Next p'
            -> Next s'
            -> Next v'
            -> RenameInfo v' varsC
            -> T.Rule p s v
-           -> S.State (RenameInfo p' predsC, RenameInfo s' symsC) (T.Rule p' s' v')
-renameRule nextPred nextSym nextVar v r = S.state action
-    where action (p, s) = let (r', (p', s', _)) = S.runState (renameType nextPred nextSym nextVar r) (p, s, v)
-                          in (r', (p', s'))
+           -> RenameRuleState p' predsC s' symsC v'
+renameRule nextPred nextSym nextVar v r = let m = renameType nextPred nextSym nextVar r
+                                          in do 
+                                               st <- S.get
+                                               let (r, st') = S.runState m $ addVarsInfo st
+                                               S.put $ removeVarsInfo st'
+                                               return r
+        where addVarsInfo (p, s) = (p, s, v)                                    
+              removeVarsInfo (p, s, _) = (p, s)
 
-renameQuery :: (Eq p, Eq s, Eq v, KC.KeyedCollection predsC p, KC.KeyedCollection symsC s, KC.KeyedCollection varsC v)
+renameQuery ::
+            ( Eq p
+            , Eq s
+            , Eq v
+            , KC.KeyedCollection predsC p
+            , KC.KeyedCollection symsC s
+            , KC.KeyedCollection varsC v
+            )
             => Next p'
             -> Next s'
             -> Next v'
-            -> (RenameInfo p' predsC, RenameInfo s' symsC, RenameInfo v' varsC)
+            -> AtomRenameInfo p' predsC s' symsC v' varsC
             -> T.Query p s v
-            -> (T.Query p' s' v', (RenameInfo p' predsC, RenameInfo s' symsC, RenameInfo v' varsC))
+            -> RenamedQueryInfo p' predsC s' symsC v' varsC
 renameQuery nextPred nextSym nextVar st@(p, _, _) q = let m = mapM (renameAtom nextPred nextSym nextVar) q
-                                                          (q', (_, s', v')) = S.runState m st
-                                                      in (q', (p, s', v'))
+                                                      in bimap id (trimap (const p) id id) $ S.runState m st
 
-createDataBase :: (Eq p', Eq p, Eq s, Eq v, KC.KeyedCollection predsC p, KC.KeyedCollection symsC s, KC.KeyedCollection varsC v, KC.KeyedCollection rulesC p', Functor rulesC)
+createDataBase ::
+               ( Eq p'
+               , Eq p
+               , Eq s
+               , Eq v
+               , KC.KeyedCollection predsC p
+               , KC.KeyedCollection symsC s
+               , KC.KeyedCollection varsC v
+               , KC.KeyedCollection rulesC p'
+               , Functor rulesC
+               )
                => Next p'
                -> Next s'
                -> Next v'
-               -> (RenameInfo p' predsC, RenameInfo s' symsC)
+               -> RuleRenameInfo p' predsC s' symsC
                -> RenameInfo v' varsC
                -> T.Rules p s v
-               -> (rulesC (T.Rules p' s' v'), (RenameInfo p' predsC, RenameInfo s' symsC))
+               -> DataBaseInfo rulesC p' predsC s' symsC v'
 createDataBase np ns nv st v rs = let m = mapM (renameRule np ns nv v) rs
-                                      (rs', st') = S.runState m st
-                                  in (dataBase rs', st')
+                                  in bimap dataBase id $ S.runState m st
     where dataBase rs = fmap reverse $ S.execState (mapM_ insertRule rs) KC.empty
-          insertRule r = S.state $ \db -> let p = T.predSymbol $ T.ruleHead r
-                                          in ((), KC.insert db p $ addRuleToDB db p r)
-          addRuleToDB db p r = case KC.find db p of
-                                   Nothing -> [r]
-                                   (Just rs) -> r:rs
+          insertRule r = do
+                           let p = T.predSymbol $ T.ruleHead r
+                           db <- S.get
+                           S.put $ KC.insert db p $ addRuleToDB db p r
+          addRuleToDB db p r = maybe [r] (r:) $ KC.find db p
