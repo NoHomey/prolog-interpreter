@@ -48,13 +48,13 @@ type Next a = a -> a
 type DataBase p s v db = db (Rules p s v)
 
 step :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => Next v -> DataBase p s v db -> ResolutionState p s v -> ResolutionPath p s v -> Maybe (Rules p s v) -> ResolutionState p s v
-step nextRID db fail p rs = maybe fail firstThatUnifies rs
+step nextRID db retry p rs = maybe retry firstThatUnifies rs
     where h = head p
           g = goal h
           s = varsValues h
           rid = lastRID h
           target = U.substituteTerms s $ head g
-          firstThatUnifies []     = fail
+          firstThatUnifies []     = retry
           firstThatUnifies (r:rs) = case U.unify target $ rename rid $ T.ruleHead r of
                                         Nothing -> firstThatUnifies rs
                                         (Just s') -> do
