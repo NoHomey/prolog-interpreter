@@ -3,6 +3,8 @@
 module Prolog.PipelineFromTextToOptimizedForUnification (
     ParseErrorFrom(..),
     ParseError,
+    RenamedQueryInfo,
+    DataBaseInfo,
     pipelineForDataBase,
     pipelineForQuery
 ) where
@@ -19,6 +21,10 @@ data ParseErrorFrom = Rules | Query deriving (Eq, Show)
 
 type ParseError = (ParseErrorFrom, PT.Counter)
 
+type RenamedQueryInfo p predsC s symsC v varsC = (OU.Query p s v, DB.AtomRenameInfo p predsC s symsC v varsC)
+
+type DataBaseInfo db p predsC s symsC v = (OU.DataBase db p s v, DB.RuleRenameInfo p predsC s symsC)
+
 mapErrors :: ParseErrorFrom -> [PT.Counter] -> ParseError
 mapErrors from cs = (from, maximum cs)
 
@@ -30,9 +36,9 @@ mapParseTreeForQuery ::
                      => DB.Next p
                      -> DB.Next s
                      -> DB.Next v
-                     -> (DB.RenameInfo p predsC, DB.RenameInfo s symsC, DB.RenameInfo v varsC)
+                     -> DB.AtomRenameInfo p predsC s symsC v varsC
                      -> PT.ParseTree
-                     -> (OU.Query p s v, (DB.RenameInfo p predsC, DB.RenameInfo s symsC, DB.RenameInfo v varsC))
+                     -> RenamedQueryInfo p predsC s symsC v varsC
 mapParseTreeForQuery np ns nv st pt = let map = bimap OU.optimizeQueryForUnification id
                                           renameQuery = DB.renameQuery np ns nv st
                                       in map $ renameQuery $ PR.query pt
@@ -48,10 +54,10 @@ mapParseTreeForRules ::
                      => DB.Next p
                      -> DB.Next s
                      -> DB.Next v
-                     -> (DB.RenameInfo p predsC, DB.RenameInfo s symsC)
+                     -> DB.RuleRenameInfo p predsC s symsC
                      -> DB.RenameInfo v varsC
                      -> PT.ParseTree
-                     -> (rulesC (OU.Rules p s v), (DB.RenameInfo p predsC, DB.RenameInfo s symsC))
+                     -> DataBaseInfo rulesC p predsC s symsC v
 mapParseTreeForRules np ns nv st v pt = let map = bimap OU.optimizeDataBaseForUnification id
                                             createDB = DB.createDataBase np ns nv st v
                                         in map $ createDB $ PR.rules pt
@@ -64,9 +70,9 @@ pipelineForQuery ::
                  => DB.Next p
                  -> DB.Next s
                  -> DB.Next v
-                 -> (DB.RenameInfo p predsC, DB.RenameInfo s symsC, DB.RenameInfo v varsC)
+                 -> DB.AtomRenameInfo p predsC s symsC v varsC
                  -> [PG.Terminal]
-                 -> Either ParseError (OU.Query p s v, (DB.RenameInfo p predsC, DB.RenameInfo s symsC, DB.RenameInfo v varsC))
+                 -> Either ParseError (RenamedQueryInfo p predsC s symsC v varsC)
 pipelineForQuery np ns nv st text = let mapParseErrors = mapErrors Query
                                         mapParseTrees = (mapParseTreeForQuery np ns nv st) . head
                                         parseResult = PT.parse PG.Query text
@@ -83,10 +89,10 @@ pipelineForDataBase ::
                     => DB.Next p
                     -> DB.Next s
                     -> DB.Next v
-                    -> (DB.RenameInfo p predsC, DB.RenameInfo s symsC)
+                    -> DB.RuleRenameInfo p predsC s symsC
                     -> DB.RenameInfo v varsC
                     -> [PG.Terminal]
-                    -> Either ParseError (rulesC (OU.Rules p s v), (DB.RenameInfo p predsC, DB.RenameInfo s symsC))
+                    -> Either ParseError (DataBaseInfo rulesC p predsC s symsC v)
 pipelineForDataBase np ns nv st v text = let mapParseErrors = mapErrors Rules
                                              mapParseTrees = (mapParseTreeForRules np ns nv st v) . head
                                              parseResult = PT.parse PG.Start text

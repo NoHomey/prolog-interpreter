@@ -1,6 +1,9 @@
 module Prolog.DataBase (
     Next,
     RenameInfo,
+    AtomRenameInfo,
+    RuleRenameInfo,
+    DataBase,
     renameQuery,
     createDataBase
 ) where
@@ -31,7 +34,9 @@ type RenameRuleState p predsC s symsC v = S.State (RuleRenameInfo p predsC s sym
 
 type RenamedQueryInfo p predsC s symsC v varsC = (T.Query p s v, AtomRenameInfo p predsC s symsC v varsC)
 
-type DataBaseInfo db p predsC s symsC v = (db (T.Rules p s v), RuleRenameInfo p predsC s symsC)
+type DataBase db p s v = db (T.Rules p s v)
+
+type DataBaseInfo db p predsC s symsC v = (DataBase db p s v, RuleRenameInfo p predsC s symsC)
 
 rename :: (Eq a, KC.KeyedCollection c a) => Next b -> RenameInfo b c -> a -> Rename b c
 rename next info id = maybe (makeRename info) (renameInfo info) $ KC.find (snd info) id
