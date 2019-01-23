@@ -73,10 +73,8 @@ tryUnify (e@(a, b):es) = case e of
                              (T.Func f fps, T.Func g gps) -> if f == g
                                                                then tryUnify $ (zip fps gps) ++ es
                                                                else Nothing
-     where eliminate x t es = do
-                                let sub = substitute (substitutionFuncForVar x t)
-                                s <- tryUnify $ map (bimap sub sub) es
-                                return $ (x, t):s
+     where eliminate x t es = let sub = substitute (substitutionFuncForVar x t)
+                              in fmap ((x, t):) $ tryUnify $ map (bimap sub sub) es
 
 unify :: (Eq p, Eq s, Eq v) => OU.Atom p s v -> OU.Atom p s v -> Maybe (Substitution s v)
 unify a b = do
