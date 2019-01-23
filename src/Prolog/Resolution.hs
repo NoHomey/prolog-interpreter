@@ -27,9 +27,11 @@ type Substitution s v = U.Substitution s (v, v)
 
 type Rules p s v = OU.Rules p s v
 
+type Options p s v = Maybe (Rules p s v)
+
 data ResolutionStep p s v = ResolutionStep { goal :: Query p s v
                                            , varsValues :: Substitution s v
-                                           , options :: Maybe (Rules p s v)
+                                           , options :: Options p s v
                                            , lastRID :: v
                                            } deriving (Show)
 
@@ -47,7 +49,7 @@ type Next a = a -> a
 
 type DataBase p s v db = db (Rules p s v)
 
-step :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => Next v -> DataBase p s v db -> ResolutionState p s v -> ResolutionPath p s v -> Maybe (Rules p s v) -> ResolutionState p s v
+step :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => Next v -> DataBase p s v db -> ResolutionState p s v -> ResolutionPath p s v -> Options p s v -> ResolutionState p s v
 step nextRID db retry p rs = maybe retry firstThatUnifies rs
     where h = head p
           g = goal h
