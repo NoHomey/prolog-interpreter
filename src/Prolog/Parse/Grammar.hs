@@ -23,7 +23,7 @@ data NonTerminal = Start
                  | UpperCaseLetter
                  | Letter
                  | Digit
-                 | LetterOrDigit
+                 | LettersOrDigits
                  | Dot
                  | Comma
                  | LeftParenthesis
@@ -36,10 +36,14 @@ data NonTerminal = Start
 type Terminal = Char
 
 recursiveRule :: n -> n -> G.Rule n t
-recursiveRule n r = G.Rule [[G.NonTerminal n, G.NonTerminal r], [G.NonTerminal n]]
+recursiveRule n r = G.Rule [ [G.NonTerminal n, G.NonTerminal r]
+                           , [G.NonTerminal n]
+                           ]
 
 alternativeRecursiveRule :: n -> n -> n -> G.Rule n t
-alternativeRecursiveRule n1 n2 r = G.Rule $ [[G.NonTerminal n, G.NonTerminal r] | n <- [n1, n2]] ++ [[G.NonTerminal n] | n <- [n1, n2]]
+alternativeRecursiveRule n1 n2 r = let recursive = [[G.NonTerminal n, G.NonTerminal r] | n <- [n1, n2]]
+                                       termination = [[G.NonTerminal n] | n <- [n1, n2]]
+                                   in G.Rule $ recursive ++ termination
 
 singleChoiceRule :: G.RuleBody n t -> G.Rule n t
 singleChoiceRule = G.Rule . (:[])
@@ -48,27 +52,49 @@ choiceRule :: [n] -> G.Rule n t
 choiceRule ns = G.Rule [[G.NonTerminal n] | n <- ns]
 
 listRule :: n -> n -> n -> G.Rule n t
-listRule n s r = G.Rule [[G.NonTerminal n, G.Skip s, G.NonTerminal r], [G.NonTerminal n]]
+listRule n s r = G.Rule [ [G.NonTerminal n, G.Skip s, G.NonTerminal r]
+                        , [G.NonTerminal n]
+                        ]
 
 terminalRule :: [t] -> G.Rule n t
 terminalRule ts = G.Rule [[G.Terminal t] | t <- ts]
 
 whiteSpaceSkip :: n -> t -> G.Rule n t
-whiteSpaceSkip s t = G.Rule [[G.Terminal t, G.Skip s], [G.Terminal t]]
+whiteSpaceSkip s t = G.Rule [ [G.Terminal t, G.Skip s]
+                            , [G.Terminal t]
+                            ]
 
-start = G.Rule [[G.NonTerminal Rule, G.NonTerminal Start]
-               ,[G.NonTerminal Fact, G.NonTerminal Start]
-               ,[G.NonTerminal Rule, G.End]
-               ,[G.NonTerminal Fact, G.End]]
+prefixToken :: n -> n -> n -> G.Rule n t
+prefixToken p r s =  let token = [ [G.NonTerminal p, G.NonTerminal r]
+                                 , [G.NonTerminal p]
+                                 ]
+                         tokenWithSkipSufix = map ( ++ [G.Skip s]) token
+                     in G.Rule $ token ++ tokenWithSkipSufix
 
-query = G.Rule [[G.NonTerminal Atom, G.Skip Comma, G.NonTerminal Query]
-               ,[G.NonTerminal Atom, G.Skip Dot, G.End]]
+start = G.Rule [ [G.NonTerminal Rule, G.NonTerminal Start]
+               , [G.NonTerminal Fact, G.NonTerminal Start]
+               , [G.NonTerminal Rule, G.End]
+               , [G.NonTerminal Fact, G.End]
+               ]
+
+query = G.Rule [ [G.NonTerminal Atom, G.Skip Comma, G.NonTerminal Query]
+               , [G.NonTerminal Atom, G.Skip Dot, G.End]
+               ]
 
 fact = singleChoiceRule [G.NonTerminal Atom, G.Skip Dot]
 
-rule = singleChoiceRule [G.NonTerminal Atom, G.Skip Dots, G.Skip Dash, G.NonTerminal Atoms, G.Skip Dot]
+rule = singleChoiceRule [ G.NonTerminal Atom
+                        , G.Skip Dots
+                        , G.Skip Dash
+                        , G.NonTerminal Atoms
+                        , G.Skip Dot
+                        ]
 
-atom = singleChoiceRule [G.NonTerminal Identifier, G.Skip LeftParenthesis, G.NonTerminal Terms, G.Skip RightParenthesis]
+atom = singleChoiceRule [ G.NonTerminal Identifier
+                        , G.Skip LeftParenthesis
+                        , G.NonTerminal Terms
+                        , G.Skip RightParenthesis
+                        ]
 
 atoms = listRule Atom Comma Atoms
 
@@ -76,21 +102,19 @@ term = choiceRule [Func, Const, Var]
 
 terms = listRule Term Comma Terms
 
-func = singleChoiceRule [G.NonTerminal Identifier, G.Skip LeftParenthesis, G.NonTerminal Terms, G.Skip RightParenthesis]
+func = singleChoiceRule [ G.NonTerminal Identifier
+                        , G.Skip LeftParenthesis
+                        , G.NonTerminal Terms
+                        , G.Skip RightParenthesis
+                        ]
 
 const = choiceRule [Identifier]
 
-identifier = G.Rule [[G.NonTerminal LowerCaseLetter, G.NonTerminal LetterOrDigit]
-                    ,[G.NonTerminal LowerCaseLetter]
-                    ,[G.NonTerminal LowerCaseLetter, G.NonTerminal LetterOrDigit, G.Skip WhiteSpaces]
-                    ,[G.NonTerminal LowerCaseLetter, G.Skip WhiteSpaces]]
+identifier = prefixToken LowerCaseLetter LettersOrDigits WhiteSpaces
 
-var = G.Rule [[G.NonTerminal UpperCaseLetter, G.NonTerminal LetterOrDigit]
-             ,[G.NonTerminal UpperCaseLetter]
-             ,[G.NonTerminal UpperCaseLetter, G.NonTerminal LetterOrDigit, G.Skip WhiteSpaces]
-             ,[G.NonTerminal UpperCaseLetter, G.Skip WhiteSpaces]]
+var = prefixToken UpperCaseLetter LettersOrDigits WhiteSpaces
 
-letterOrDigit = alternativeRecursiveRule Letter Digit LetterOrDigit
+lettersOrDigits = alternativeRecursiveRule Letter Digit LettersOrDigits
 
 letter = choiceRule [LowerCaseLetter, UpperCaseLetter]
 
@@ -112,7 +136,9 @@ dash = whiteSpaceSkip WhiteSpaces '-'
 
 dots = whiteSpaceSkip WhiteSpaces ':'
 
-whiteSpaces = G.Rule [[G.Skip WhiteSpace, G.Skip WhiteSpaces], [G.Skip WhiteSpace]]
+whiteSpaces = G.Rule [ [G.Skip WhiteSpace, G.Skip WhiteSpaces]
+                     , [G.Skip WhiteSpace]
+                     ]
 
 whiteSpaceSymbols = ['\n', '\t', ' ']
 
@@ -131,7 +157,7 @@ ruleFor Func             = func
 ruleFor Const            = Prolog.Parse.Grammar.const
 ruleFor Identifier       = identifier
 ruleFor Var              = var
-ruleFor LetterOrDigit    = letterOrDigit
+ruleFor LettersOrDigits    = lettersOrDigits
 ruleFor Letter           = letter
 ruleFor LowerCaseLetter  = lowerCaseLetter
 ruleFor UpperCaseLetter  = upperCaseLetter

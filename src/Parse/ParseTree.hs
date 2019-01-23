@@ -1,5 +1,6 @@
 module Parse.ParseTree (
     ParseTree,
+    UpdateState,
     symbol,
     children,
     parse
@@ -13,12 +14,16 @@ data ParseTree n t = ParseTree {symbol :: Symbol n t, children :: [ParseTree n t
 
 type ParseResult n t s = Either s (ParseTree n t)
 
-type ParsingResult n t s = [(ParseResult n t s, ([t], s))]
+type State t s = ([t], s)
+
+type ParsingResult n t s = [(ParseResult n t s, State t s)]
+
+type UpdateState t s = s -> t -> s
 
 parseTreeLeaf :: Symbol n t -> ParseTree n t
 parseTreeLeaf s = ParseTree s []
 
-parseTerminal :: (Eq t) => (s -> t -> s) -> t -> ([t], s) -> ParsingResult n t s
+parseTerminal :: (Eq t) => UpdateState t s -> t -> State t s -> ParsingResult n t s
 parseTerminal u t s@(w, p) = [if null w || (head w) /= t
                                 then (Left p, s)
                                 else (Right $ parseTreeLeaf $ Terminal t, (tail w, u p t))]
@@ -26,7 +31,7 @@ parseTerminal u t s@(w, p) = [if null w || (head w) /= t
 parseEnd :: ([t], s) -> ParsingResult n t s
 parseEnd s@(w, p) = [if null w then (Right $ parseTreeLeaf End, s) else (Left p, s)]
 
-parseNonTerminal :: (Eq t) => Grammar n t -> (s -> t -> s) -> n -> ([t], s) -> ParsingResult n t s
+parseNonTerminal :: (Eq t) => Grammar n t -> UpdateState t s -> n -> State t s -> ParsingResult n t s
 parseNonTerminal g u n s = parse (NonTerminal n) s
     where parse (Skip n)         = parseNonTerminalSymbol Skip n
           parse (NonTerminal n)  = parseNonTerminalSymbol NonTerminal n
@@ -53,7 +58,7 @@ parseNonTerminal g u n s = parse (NonTerminal n) s
           shouldSkip End      = True
           shouldSkip _        = False
 
-parse :: (Eq t) => Grammar n t -> (s -> t -> s) -> s -> n -> [t] -> Either [s] [ParseTree n t]
+parse :: (Eq t) => Grammar n t -> UpdateState t s -> s -> n -> [t] -> Either [s] [ParseTree n t]
 parse g u p n w = let (es, ps) = partition (isLeft . fst) $ parseNonTerminal g u n (w, p)
                       (ws, rrs) = partition (not . null . fst . snd) ps
                       allEs = (map ((fromLeft undefined) . fst) es) ++ [snd $ snd wrong | wrong <- ws]

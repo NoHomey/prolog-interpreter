@@ -13,7 +13,7 @@ type ParseTree = PT.ParseTree NonTerminal Terminal
 
 type Counter = (Int, Int)
 
-update :: Counter -> Terminal -> Counter 
+update :: PT.UpdateState Terminal Counter 
 update (line, symbol) t = if t == '\n'
                             then (line + 1, 1)
                             else (line, symbol + 1)
