@@ -5,6 +5,7 @@ module Prolog.Resolution (
     ResolutionPath,
     MaybeSubstitution,
     ResolutionResult,
+    Next,
     DataBase,
     resolve,
     next
@@ -45,9 +46,15 @@ type ResolutionState p s v = State p s v (MaybeSubstitution s v)
 
 type Next a = a -> a
 
-type DataBase p s v db = db (Rules p s v)
+type DataBase db p s v = OU.DataBase db p s v
 
-step :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => Next v -> DataBase p s v db -> ResolutionState p s v -> ResolutionPath p s v -> Rules p s v -> ResolutionState p s v
+step :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p)
+     => Next v
+     -> DataBase db p s v
+     -> ResolutionState p s v
+     -> ResolutionPath p s v
+     -> Rules p s v
+     -> ResolutionState p s v
 step nextRID db retry p rs = firstSolution rs
     where h = head p
           g = goal h
@@ -57,20 +64,19 @@ step nextRID db retry p rs = firstSolution rs
           firstSolution []     = retry
           firstSolution (r:rs) = case U.unify target $ rename rid $ T.ruleHead r of
                                      Nothing -> firstSolution rs
-                                     (Just s') -> do
-                                                    let body = map (rename rid) $ T.body r
-                                                    let uh = ResolutionStep g s rs rid
-                                                    let nh = ResolutionStep (body ++ (tail g)) (U.compose s' s) [] $ nextRID rid
-                                                    (S.put $ nh:uh:(tail p)) >> (down nextRID db)
+                                     (Just s') -> let body = map (rename rid) $ T.body r
+                                                      uh = ResolutionStep g s rs rid
+                                                      nh = ResolutionStep (body ++ (tail g)) (U.compose s' s) [] $ nextRID rid
+                                                  in (S.put $ nh:uh:(tail p)) >> (down nextRID db)
 
-backtrack :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => Next v -> DataBase p s v db -> ResolutionState p s v
+backtrack :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => Next v -> DataBase db p s v -> ResolutionState p s v
 backtrack nextRID db = do
                          p <- S.get
                          if null p
                            then return Nothing
                            else step nextRID db ((S.put $ tail p) >> (backtrack nextRID db)) p $ options $ head p
 
-down :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => Next v -> DataBase p s v db -> ResolutionState p s v
+down :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => Next v -> DataBase db p s v -> ResolutionState p s v
 down nextRID db = do
                     p <- S.get
                     let s = head p
@@ -89,8 +95,18 @@ result rid st path = bimap (fmap (filter ((rid ==). fst . fst))) id $ S.runState
 initialResolutionPath :: Next v -> v -> OU.Query p s v -> ResolutionPath p s v
 initialResolutionPath nextRID rid q = [ResolutionStep (map (rename rid) q) U.empty [] $ nextRID rid]
 
-resolve :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => Next v -> v -> DataBase p s v db -> OU.Query p s v -> ResolutionResult p s v
+resolve :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p)
+        => Next v
+        -> v
+        -> DataBase db p s v
+        -> OU.Query p s v
+        -> ResolutionResult p s v
 resolve nextRID rid db q = result rid (down nextRID db) $ initialResolutionPath nextRID rid q
 
-next :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => Next v -> v -> DataBase p s v db -> ResolutionPath p s v -> ResolutionResult p s v
+next :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p)
+     => Next v
+     -> v
+     -> DataBase db p s v
+     -> ResolutionPath p s v
+     -> ResolutionResult p s v
 next nextRID rid db path = result rid (backtrack nextRID db) path
