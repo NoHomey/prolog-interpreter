@@ -4,15 +4,15 @@ module Prolog.PipelineFromTextToOptimizedForUnification (
     ParseErrorFrom(..),
     ParseError,
     RenamedQueryInfo,
-    DataBaseInfo,
-    pipelineForDataBase,
+    KnowledgeBaseInfo,
+    pipelineForKnowledgeBase,
     pipelineForQuery
 ) where
 
 import qualified Prolog.Parse.ParseTree as PT
 import qualified Prolog.Parse.Result as PR
 import qualified Prolog.Parse.Grammar as PG
-import qualified Prolog.DataBase as DB
+import qualified Prolog.KnowledgeBase as DB
 import qualified Prolog.OptimizeForUnification as OU
 import qualified Data.KeyedCollection as KC
 import Data.Bifunctor
@@ -23,7 +23,7 @@ type ParseError = (ParseErrorFrom, PT.Counter)
 
 type RenamedQueryInfo p predsC s symsC v varsC = (OU.Query p s v, DB.AtomRenameInfo p predsC s symsC v varsC)
 
-type DataBaseInfo db p predsC s symsC v = (OU.DataBase db p s v, DB.RuleRenameInfo p predsC s symsC)
+type KnowledgeBaseInfo kb p predsC s symsC v = (OU.KnowledgeBase kb p s v, DB.RuleRenameInfo p predsC s symsC)
 
 mapErrors :: ParseErrorFrom -> [PT.Counter] -> ParseError
 mapErrors from cs = (from, maximum cs)
@@ -57,9 +57,9 @@ mapParseTreeForRules ::
                      -> DB.RuleRenameInfo p predsC s symsC
                      -> DB.RenameInfo v varsC
                      -> PT.ParseTree
-                     -> DataBaseInfo rulesC p predsC s symsC v
-mapParseTreeForRules np ns nv st v pt = let map = bimap OU.optimizeDataBaseForUnification id
-                                            createDB = DB.createDataBase np ns nv st v
+                     -> KnowledgeBaseInfo rulesC p predsC s symsC v
+mapParseTreeForRules np ns nv st v pt = let map = bimap OU.optimizeKnowledgeBaseForUnification id
+                                            createDB = DB.createKnowledgeBase np ns nv st v
                                         in map $ createDB $ PR.rules pt
 
 pipelineForQuery ::
@@ -78,7 +78,7 @@ pipelineForQuery np ns nv st text = let mapParseErrors = mapErrors Query
                                         parseResult = PT.parse PG.Query text
                                     in bimap mapParseErrors mapParseTrees parseResult
                                     
-pipelineForDataBase ::
+pipelineForKnowledgeBase ::
                     ( Eq p
                     , KC.KeyedCollection predsC PR.Identifier
                     , KC.KeyedCollection symsC PR.Identifier
@@ -92,8 +92,8 @@ pipelineForDataBase ::
                     -> DB.RuleRenameInfo p predsC s symsC
                     -> DB.RenameInfo v varsC
                     -> [PG.Terminal]
-                    -> Either ParseError (DataBaseInfo rulesC p predsC s symsC v)
-pipelineForDataBase np ns nv st v text = let mapParseErrors = mapErrors Rules
-                                             mapParseTrees = (mapParseTreeForRules np ns nv st v) . head
-                                             parseResult = PT.parse PG.Start text
-                                         in bimap mapParseErrors mapParseTrees parseResult
+                    -> Either ParseError (KnowledgeBaseInfo rulesC p predsC s symsC v)
+pipelineForKnowledgeBase np ns nv st v text = let mapParseErrors = mapErrors Rules
+                                                  mapParseTrees = (mapParseTreeForRules np ns nv st v) . head
+                                                  parseResult = PT.parse PG.KnowledgeBase text
+                                              in bimap mapParseErrors mapParseTrees parseResult

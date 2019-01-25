@@ -6,7 +6,7 @@ module Prolog.Resolution (
     MaybeSubstitution,
     ResolutionResult,
     Next,
-    DataBase,
+    KnowledgeBase,
     resolve,
     next
 ) where
@@ -46,16 +46,16 @@ type ResolutionState p s v = State p s v (MaybeSubstitution s v)
 
 type Next a = a -> a
 
-type DataBase db p s v = OU.DataBase db p s v
+type KnowledgeBase kb p s v = OU.KnowledgeBase kb p s v
 
-step :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p)
+step :: (Eq p, Eq s, Eq v, KC.KeyedCollection kb p)
      => Next v
-     -> DataBase db p s v
+     -> KnowledgeBase kb p s v
      -> ResolutionState p s v
      -> ResolutionPath p s v
      -> Rules p s v
      -> ResolutionState p s v
-step nextRID db retry p rs = firstSolution rs
+step nextRID kb retry p rs = firstSolution rs
     where h = head p
           g = goal h
           s = varsValues h
@@ -67,26 +67,26 @@ step nextRID db retry p rs = firstSolution rs
                                      (Just s') -> let body = map (rename rid) $ T.body r
                                                       uh = ResolutionStep g s rs rid
                                                       nh = ResolutionStep (body ++ (tail g)) (U.compose s' s) [] $ nextRID rid
-                                                  in (S.put $ nh:uh:(tail p)) >> (down nextRID db)
+                                                  in (S.put $ nh:uh:(tail p)) >> (down nextRID kb)
 
-backtrack :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => Next v -> DataBase db p s v -> ResolutionState p s v
-backtrack nextRID db = do
+backtrack :: (Eq p, Eq s, Eq v, KC.KeyedCollection kb p) => Next v -> KnowledgeBase kb p s v -> ResolutionState p s v
+backtrack nextRID kb = do
                          p <- S.get
                          if null p
                            then return Nothing
-                           else step nextRID db ((S.put $ tail p) >> (backtrack nextRID db)) p $ options $ head p
+                           else step nextRID kb ((S.put $ tail p) >> (backtrack nextRID kb)) p $ options $ head p
 
-down :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p) => Next v -> DataBase db p s v -> ResolutionState p s v
-down nextRID db = do
+down :: (Eq p, Eq s, Eq v, KC.KeyedCollection kb p) => Next v -> KnowledgeBase kb p s v -> ResolutionState p s v
+down nextRID kb = do
                     p <- S.get
                     let s = head p
                     let g = goal s
                     if null g
                       then return $ Just $ varsValues s
-                      else let retry = backtrack nextRID db
-                           in maybe retry (step nextRID db retry p) $ KC.find db $ OU.identifier $ T.predSymbol $ head g
+                      else let retry = backtrack nextRID kb
+                           in maybe retry (step nextRID kb retry p) $ KC.find kb $ OU.identifier $ T.predSymbol $ head g
 
-rename :: v -> OU.Atom p s v -> OU.Atom p s (v, v)
+rename :: v -> OU.Atom p s v -> Atom p s v
 rename rid = fmap ((,) rid)
 
 result :: (Eq v) => v -> ResolutionState p s v -> ResolutionPath p s v -> ResolutionResult p s v
@@ -95,18 +95,18 @@ result rid st path = bimap (fmap (filter ((rid ==). fst . fst))) id $ S.runState
 initialResolutionPath :: Next v -> v -> OU.Query p s v -> ResolutionPath p s v
 initialResolutionPath nextRID rid q = [ResolutionStep (map (rename rid) q) U.empty [] $ nextRID rid]
 
-resolve :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p)
+resolve :: (Eq p, Eq s, Eq v, KC.KeyedCollection kb p)
         => Next v
         -> v
-        -> DataBase db p s v
+        -> KnowledgeBase kb p s v
         -> OU.Query p s v
         -> ResolutionResult p s v
-resolve nextRID rid db q = result rid (down nextRID db) $ initialResolutionPath nextRID rid q
+resolve nextRID rid kb q = result rid (down nextRID kb) $ initialResolutionPath nextRID rid q
 
-next :: (Eq p, Eq s, Eq v, KC.KeyedCollection db p)
+next :: (Eq p, Eq s, Eq v, KC.KeyedCollection kb p)
      => Next v
      -> v
-     -> DataBase db p s v
+     -> KnowledgeBase kb p s v
      -> ResolutionPath p s v
      -> ResolutionResult p s v
-next nextRID rid db path = result rid (backtrack nextRID db) path
+next nextRID rid kb path = result rid (backtrack nextRID kb) path

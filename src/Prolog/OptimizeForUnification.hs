@@ -7,9 +7,9 @@ module Prolog.OptimizeForUnification (
     Query,
     Rule,
     Rules,
-    DataBase,
+    KnowledgeBase,
     optimizeQueryForUnification,
-    optimizeDataBaseForUnification
+    optimizeKnowledgeBaseForUnification
 ) where
 
 import qualified Prolog.Types as T
@@ -31,7 +31,7 @@ type Rule p s v = T.Rule (ArityIdentifier p) (ArityIdentifier s) v
 
 type Rules p s v = [Rule p s v]
 
-type DataBase db p s v = db (Rules p s v)
+type KnowledgeBase kb p s v = kb (Rules p s v)
 
 instance (Show a) => Show (ArityIdentifier a) where
     show aid = "{" ++ (show $ identifier aid) ++ ", " ++ (show $ arity aid) ++ "}"
@@ -64,5 +64,5 @@ addArityToRules = map addArityToRule
 optimizeQueryForUnification :: T.Query p s v -> Query p s v
 optimizeQueryForUnification = addArityToQuery
 
-optimizeDataBaseForUnification :: (Functor dataBase) => dataBase (T.Rules p s v) -> DataBase dataBase p s v
-optimizeDataBaseForUnification = fmap addArityToRules
+optimizeKnowledgeBaseForUnification :: (Functor kb) => kb (T.Rules p s v) -> KnowledgeBase kb p s v
+optimizeKnowledgeBaseForUnification = fmap addArityToRules

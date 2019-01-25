@@ -1,11 +1,11 @@
-module Prolog.DataBase (
+module Prolog.KnowledgeBase (
     Next,
     RenameInfo,
     AtomRenameInfo,
     RuleRenameInfo,
-    DataBase,
+    KnowledgeBase,
     renameQuery,
-    createDataBase
+    createKnowledgeBase
 ) where
 
 import qualified Prolog.Types as T
@@ -34,9 +34,9 @@ type RenameRuleState p predsC s symsC v = S.State (RuleRenameInfo p predsC s sym
 
 type RenamedQueryInfo p predsC s symsC v varsC = (T.Query p s v, AtomRenameInfo p predsC s symsC v varsC)
 
-type DataBase db p s v = db (T.Rules p s v)
+type KnowledgeBase kb p s v = kb (T.Rules p s v)
 
-type DataBaseInfo db p predsC s symsC v = (DataBase db p s v, RuleRenameInfo p predsC s symsC)
+type KnowledgeBaseInfo kb p predsC s symsC v = (KnowledgeBase kb p s v, RuleRenameInfo p predsC s symsC)
 
 rename :: (Eq a, KC.KeyedCollection c a) => Next b -> RenameInfo b c -> a -> Rename b c
 rename next info id = maybe (makeRename info) (renameInfo info) $ KC.find (snd info) id
@@ -123,7 +123,7 @@ renameQuery ::
 renameQuery nextPred nextSym nextVar st@(p, _, _) q = let m = mapM (renameAtom nextPred nextSym nextVar) q
                                                       in bimap id (trimap (const p) id id) $ S.runState m st
 
-createDataBase ::
+createKnowledgeBase ::
                ( Eq p'
                , Eq p
                , Eq s
@@ -140,12 +140,12 @@ createDataBase ::
                -> RuleRenameInfo p' predsC s' symsC
                -> RenameInfo v' varsC
                -> T.Rules p s v
-               -> DataBaseInfo rulesC p' predsC s' symsC v'
-createDataBase np ns nv st v rs = let m = mapM (renameRule np ns nv v) rs
-                                  in bimap dataBase id $ S.runState m st
-    where dataBase rs = fmap reverse $ S.execState (mapM_ insertRule rs) KC.empty
+               -> KnowledgeBaseInfo rulesC p' predsC s' symsC v'
+createKnowledgeBase np ns nv st v rs = let m = mapM (renameRule np ns nv v) rs
+                                       in bimap knowledgeBase id $ S.runState m st
+    where knowledgeBase rs = fmap reverse $ S.execState (mapM_ insertRule rs) KC.empty
           insertRule r = let p = T.predSymbol $ T.ruleHead r
                          in do
-                              db <- S.get
-                              S.put $ KC.insert db p $ addRuleToDB db p r
-          addRuleToDB db p r = maybe [r] (r:) $ KC.find db p
+                              kb <- S.get
+                              S.put $ KC.insert kb p $ addRuleToDB kb p r
+          addRuleToDB kb p r = maybe [r] (r:) $ KC.find kb p

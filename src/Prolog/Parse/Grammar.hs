@@ -7,7 +7,7 @@ module Prolog.Parse.Grammar (
 
 import qualified Parse.Grammar as G
 
-data NonTerminal = Start
+data NonTerminal = KnowledgeBase
                  | Query
                  | Identifier
                  | Var
@@ -71,8 +71,8 @@ prefixToken p r s =  let token = [ [G.NonTerminal p, G.NonTerminal r]
                          tokenWithSkipSufix = map ( ++ [G.Skip s]) token
                      in G.Rule $ token ++ tokenWithSkipSufix
 
-start = G.Rule [ [G.NonTerminal Rule, G.NonTerminal Start]
-               , [G.NonTerminal Fact, G.NonTerminal Start]
+knowledgeBase = G.Rule [ [G.NonTerminal Rule, G.NonTerminal KnowledgeBase]
+               , [G.NonTerminal Fact, G.NonTerminal KnowledgeBase]
                , [G.NonTerminal Rule, G.End]
                , [G.NonTerminal Fact, G.End]
                ]
@@ -145,7 +145,7 @@ whiteSpaceSymbols = ['\n', '\t', ' ']
 whiteSpace = terminalRule whiteSpaceSymbols
 
 ruleFor :: NonTerminal -> G.Rule NonTerminal Terminal
-ruleFor Start            = start
+ruleFor KnowledgeBase            = knowledgeBase
 ruleFor Query            = query
 ruleFor Fact             = fact
 ruleFor Rule             = rule

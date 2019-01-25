@@ -25,7 +25,7 @@ type RenameInfo = (Identifier, RenameCollection)
 
 type Rules = OU.Rules Identifier Identifier Identifier
 
-type DataBase = DTrie Identifier Rules
+type KnowledgeBase = DTrie Identifier Rules
 
 type QueryRenameInfo = (RenameInfo, RenameInfo, RenameInfo)
 
@@ -46,16 +46,16 @@ initialIdentifier = 1
 initialRenameInfo :: RenameInfo
 initialRenameInfo = (initialIdentifier, KC.empty)
 
-pipelineForDB :: [G.Terminal] -> Either PTOU.ParseError (DataBase, (RenameInfo, RenameInfo))
-pipelineForDB = PTOU.pipelineForDataBase nextIdentifier nextIdentifier nextIdentifier (initialRenameInfo , initialRenameInfo) initialRenameInfo 
+pipelineForKB :: [G.Terminal] -> Either PTOU.ParseError (KnowledgeBase, (RenameInfo, RenameInfo))
+pipelineForKB = PTOU.pipelineForKnowledgeBase nextIdentifier nextIdentifier nextIdentifier (initialRenameInfo , initialRenameInfo) initialRenameInfo 
 
 pipelineForQuery :: QueryRenameInfo -> [G.Terminal] -> Either PTOU.ParseError (Query, QueryRenameInfo)
 pipelineForQuery = PTOU.pipelineForQuery nextIdentifier nextIdentifier nextIdentifier
 
-resolve :: DataBase -> Query -> ResolutionResult
+resolve :: KnowledgeBase -> Query -> ResolutionResult
 resolve = Res.resolve nextIdentifier initialIdentifier
 
-next :: DataBase -> ResolutionPath -> ResolutionResult
+next :: KnowledgeBase -> ResolutionPath -> ResolutionResult
 next = Res.next nextIdentifier initialIdentifier
 
 unmapVar :: RenameCollection -> (Identifier, Identifier) -> PR.Identifier
@@ -86,10 +86,10 @@ printSolution symsC varsC s = let idVar = unmapVar varsC
                                       then print "No answers."
                                       else mapM_ (\(v, t) -> print $ v ++ " = " ++ (showTermWithIdentifiers t)) identified
 
-askForMore :: DataBase -> RenameCollection -> RenameCollection -> ResolutionPath -> IO()
-askForMore db symsC varsC p = do
+askForMore :: KnowledgeBase -> RenameCollection -> RenameCollection -> ResolutionPath -> IO()
+askForMore kb symsC varsC p = do
                                 print "Should I try to find more solutions? [y/n]"
-                                let askAgain = askForMore db symsC varsC p
+                                let askAgain = askForMore kb symsC varsC p
                                 l <- getLine
                                 if null l
                                   then askAgain
@@ -100,20 +100,20 @@ askForMore db symsC varsC p = do
                                               'n' -> return ()
                                               'N' -> return ()
                                               c -> askAgain
-    where tryFindMore = result db symsC varsC $ next db p
+    where tryFindMore = result kb symsC varsC $ next kb p
 
-result :: DataBase -> RenameCollection -> RenameCollection -> ResolutionResult -> IO()
-result db symsC varsC res = case res of
+result :: KnowledgeBase -> RenameCollection -> RenameCollection -> ResolutionResult -> IO()
+result kb symsC varsC res = case res of
                                     (Nothing, _) -> print "No solution."
                                     (Just sub, p) -> do
                                                        printSolution symsC varsC sub
                                                        {--print ()
                                                        print p
                                                        print ()--}
-                                                       askForMore db symsC varsC p
+                                                       askForMore kb symsC varsC p
 
-printInfo :: (DataBase, Query, QueryRenameInfo) -> IO()
-printInfo (db, q, ((p, predsC), (s, symsC), (v, varsC))) = result db symsC varsC $ resolve db q
+printInfo :: (KnowledgeBase, Query, QueryRenameInfo) -> IO()
+printInfo (kb, q, ((p, predsC), (s, symsC), (v, varsC))) = result kb symsC varsC $ resolve kb q
 
 c1 = "f(a). f(b). g(a). g(b). h(b). k(X) :- f(X), g(X), h(X)."
 c2 = "nat(zero). nat(X) :- nat(Y), is(X, succ(Y)). is(X, X)."
@@ -127,10 +127,10 @@ p3 = "j(X, Y)."
 p4 = "m(Z, l(a, l(b, null))), m(Z, l(b, l(c, null)))."
 p5 = "g(G, X)."
 
-test :: ([G.Terminal], [G.Terminal]) -> Either PTOU.ParseError (DataBase, Query, QueryRenameInfo)
+test :: ([G.Terminal], [G.Terminal]) -> Either PTOU.ParseError (KnowledgeBase, Query, QueryRenameInfo)
 test (content, prompt) = do
-                           (db, (preds, syms)) <- pipelineForDB content
+                           (kb, (preds, syms)) <- pipelineForKB content
                            (query, info) <- pipelineForQuery (preds, syms, initialRenameInfo) prompt
-                           return (db, query, info)
+                           return (kb, query, info)
                                 
 main = mapM_ (either print printInfo . test) $ zip [c1, c2, c3, c4, c5] [p1, p2, p3, p4, p5]
