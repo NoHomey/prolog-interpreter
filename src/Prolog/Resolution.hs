@@ -86,7 +86,7 @@ backtrack env = do
                   if null p
                     then return Nothing
                     else let retry = (S.put $ tail p) >> (backtrack env)
-                          in step env retry p $ options $ head p
+                         in step env retry p $ options $ head p
 
 down :: (Eq p, Eq s, Eq v, KC.KeyedCollection kb p) => Env kb p s v -> ResolutionState p s v
 down env@(_, _, kb) = do
@@ -100,7 +100,7 @@ down env@(_, _, kb) = do
     where findOptions a = KC.find kb $ OU.identifier $ T.predSymbol a
 
 rename :: v -> OU.Atom p s v -> Atom p s v
-rename qRID = fmap ((,) qRID)
+rename rid = fmap ((,) rid)
 
 initialResolutionPath :: Next v -> v -> OU.Query p s v -> ResolutionPath p s v
 initialResolutionPath nextRID qRID q = [ResolutionStep (map (rename qRID) q) U.empty [] $ nextRID qRID]
