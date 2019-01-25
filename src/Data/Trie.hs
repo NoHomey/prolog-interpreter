@@ -15,7 +15,7 @@ instance (Ord s, KP.KeyToPath k s, KC.KeyedCollection c s) => KC.KeyedCollection
     empty = empty
     find = find
     insert = insert
-    assoc = map (bimap KP.fromPath id) . removeRoot . assocTrie
+    assoc = map (first KP.fromPath) . removeRoot . assocTrie
         where removeRoot (([],_):al) = al
               removeRoot al          = al
 

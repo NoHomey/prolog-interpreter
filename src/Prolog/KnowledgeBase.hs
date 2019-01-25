@@ -11,10 +11,10 @@ module Prolog.KnowledgeBase (
 import qualified Prolog.Types as T
 import qualified Control.Monad.State as S
 import qualified Data.KeyedCollection as KC
+import qualified Data.Bifunctor as Bf
+import qualified Trifunctor as Tf
 import FunctorM
 import Data.Maybe
-import Data.Bifunctor
-import Trifunctor
 
 type Next a = a -> a
 
@@ -44,13 +44,13 @@ rename next info id = maybe (makeRename info) (renameInfo info) $ KC.find (snd i
           renameInfo = flip (,)
 
 renamePred :: (Eq p, KC.KeyedCollection predsC p) => Next p' -> p -> RenameState (RenameInfo p' predsC) s v p'
-renamePred nextPred sym = S.state $ \(p, s, v) -> bimap id (\p' -> (p', s, v)) $ rename nextPred p sym
+renamePred nextPred sym = S.state $ \(p, s, v) -> Bf.second (\p' -> (p', s, v)) $ rename nextPred p sym
 
 renameSym :: (Eq s, KC.KeyedCollection symsC s) => Next s' -> s -> RenameState p (RenameInfo s' symsC) v s'
-renameSym nextSym sym = S.state $ \(p, s, v) -> bimap id (\s' -> (p, s', v)) $ rename nextSym s sym
+renameSym nextSym sym = S.state $ \(p, s, v) -> Bf.second (\s' -> (p, s', v)) $ rename nextSym s sym
 
 renameVar :: (Eq v, KC.KeyedCollection varsC v) => Next v' -> v -> RenameState p s (RenameInfo v' varsC) v'
-renameVar nextVar x = S.state $ \(p, s, v) -> bimap id (\v' -> (p, s, v')) $ rename nextVar v x
+renameVar nextVar x = S.state $ \(p, s, v) -> Bf.second (\v' -> (p, s, v')) $ rename nextVar v x
 
 renameType ::
            ( Eq p
@@ -121,7 +121,7 @@ renameQuery ::
             -> T.Query p s v
             -> RenamedQueryInfo p' predsC s' symsC v' varsC
 renameQuery nextPred nextSym nextVar st@(p, _, _) q = let m = mapM (renameAtom nextPred nextSym nextVar) q
-                                                      in bimap id (trimap (const p) id id) $ S.runState m st
+                                                      in Bf.second (Tf.first $ const p) $ S.runState m st
 
 createKnowledgeBase ::
                ( Eq p'
@@ -142,7 +142,7 @@ createKnowledgeBase ::
                -> T.Rules p s v
                -> KnowledgeBaseInfo rulesC p' predsC s' symsC v'
 createKnowledgeBase np ns nv st v rs = let m = mapM (renameRule np ns nv v) rs
-                                       in bimap knowledgeBase id $ S.runState m st
+                                       in Bf.first knowledgeBase $ S.runState m st
     where knowledgeBase rs = fmap reverse $ S.execState (mapM_ insertRule rs) KC.empty
           insertRule r = let p = T.predSymbol $ T.ruleHead r
                          in do

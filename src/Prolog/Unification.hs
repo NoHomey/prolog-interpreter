@@ -81,4 +81,4 @@ unify a b = do
               guard $ ((==) `on` T.predSymbol) a b
               s <- tryUnify $ (zip `on` T.terms) a b
               let sub = substituteWithSubstitution s 
-              return $ map (bimap id sub) s
+              return $ map (second sub) s

@@ -90,7 +90,7 @@ rename :: v -> OU.Atom p s v -> Atom p s v
 rename rid = fmap ((,) rid)
 
 result :: (Eq v) => v -> ResolutionState p s v -> ResolutionPath p s v -> ResolutionResult p s v
-result rid st path = bimap (fmap (filter ((rid ==). fst . fst))) id $ S.runState st path
+result rid st path = first (fmap $ filter $ (rid ==). fst . fst) $ S.runState st path
 
 initialResolutionPath :: Next v -> v -> OU.Query p s v -> ResolutionPath p s v
 initialResolutionPath nextRID rid q = [ResolutionStep (map (rename rid) q) U.empty [] $ nextRID rid]
