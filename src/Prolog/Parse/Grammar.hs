@@ -145,7 +145,7 @@ whiteSpaceSymbols = ['\n', '\t', ' ']
 whiteSpace = terminalRule whiteSpaceSymbols
 
 ruleFor :: NonTerminal -> G.Rule NonTerminal Terminal
-ruleFor KnowledgeBase            = knowledgeBase
+ruleFor KnowledgeBase    = knowledgeBase
 ruleFor Query            = query
 ruleFor Fact             = fact
 ruleFor Rule             = rule
@@ -157,7 +157,7 @@ ruleFor Func             = func
 ruleFor Const            = Prolog.Parse.Grammar.const
 ruleFor Identifier       = identifier
 ruleFor Var              = var
-ruleFor LettersOrDigits    = lettersOrDigits
+ruleFor LettersOrDigits  = lettersOrDigits
 ruleFor Letter           = letter
 ruleFor LowerCaseLetter  = lowerCaseLetter
 ruleFor UpperCaseLetter  = upperCaseLetter
