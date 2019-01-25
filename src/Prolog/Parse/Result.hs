@@ -48,7 +48,7 @@ terminal pt = case PT.symbol pt of
 
 recTransform :: (PT.ParseTree -> a) -> PT.ParseTree -> [a]
 recTransform f pt = case PT.children pt of
-                        [t, ts] -> (f t):(recTransform f ts)
+                        [t, ts] -> (f t):recTransform f ts
                         [t] -> [f t]
 
 identifier :: PT.ParseTree -> Identifier

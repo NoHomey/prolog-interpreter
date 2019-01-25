@@ -5,7 +5,10 @@ module Prolog.Types (
     Atoms,
     Query,
     Rule(..),
-    Rules
+    Rules,
+    isVar,
+    isFunc,
+    identifier
 ) where
 
 import Data.Bifunctor
@@ -100,3 +103,15 @@ instance (Show p, Show s, Show v) => Show (Atom p s v) where
 instance (Show p, Show s, Show v) => Show (Rule p s v) where
     show r = let rs = body r
              in (show $ ruleHead r) ++ if null rs then "" else (" <- " ++ (show rs))
+
+isVar :: Term s v -> Bool
+isVar (Var _) = True
+isVar _       = False
+
+isFunc :: Term s v -> Bool
+isFunc (Func _ _) = True
+isFund _          = False
+
+identifier :: Term s v -> Either s v
+identifier (Var x) = Right x
+identifier (Func f _) = Left f

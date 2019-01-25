@@ -73,7 +73,7 @@ fromDigit d = case d of
 rdigits :: Integral i => i -> [Digit]
 rdigits d = if d  < 10
               then [toDigit d]
-              else (toDigit $ (d `mod` 10)):(rdigits $ (d `div` 10))
+              else (toDigit $ d `mod` 10):(rdigits $ d `div` 10)
 
 toDigits :: Integral i => i -> [Digit]
 toDigits = reverse . rdigits . abs

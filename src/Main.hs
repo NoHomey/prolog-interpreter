@@ -35,7 +35,11 @@ type Substitution = U.Substitution Identifier (Identifier, Identifier)
 
 type ResolutionPath = Res.ResolutionPath Identifier Identifier Identifier
 
-type ResolutionResult = (Maybe Substitution, ResolutionPath)
+type Env = (NextIdentifier, Identifier, KnowledgeBase)
+
+type Backtrack = (Env, ResolutionPath)
+
+type ResolutionResult = Maybe (Substitution, Backtrack)
 
 nextIdentifier :: NextIdentifier
 nextIdentifier = (+1)
@@ -55,8 +59,8 @@ pipelineForQuery = PTOU.pipelineForQuery nextIdentifier nextIdentifier nextIdent
 resolve :: KnowledgeBase -> Query -> ResolutionResult
 resolve = Res.resolve nextIdentifier initialIdentifier
 
-next :: KnowledgeBase -> ResolutionPath -> ResolutionResult
-next = Res.next nextIdentifier initialIdentifier
+next :: Backtrack -> ResolutionResult
+next = Res.next
 
 unmapVar :: RenameCollection -> (Identifier, Identifier) -> PR.Identifier
 unmapVar varsC = varToIdentifier $ KC.assoc varsC
@@ -86,34 +90,30 @@ printSolution symsC varsC s = let idVar = unmapVar varsC
                                       then print "No answers."
                                       else mapM_ (\(v, t) -> print $ v ++ " = " ++ (showTermWithIdentifiers t)) identified
 
-askForMore :: KnowledgeBase -> RenameCollection -> RenameCollection -> ResolutionPath -> IO()
-askForMore kb symsC varsC p = do
-                                print "Should I try to find more solutions? [y/n]"
-                                let askAgain = askForMore kb symsC varsC p
-                                l <- getLine
-                                if null l
-                                  then askAgain
-                                  else let c = head l
-                                       in case c of
-                                              'y' -> tryFindMore
-                                              'Y' -> tryFindMore
-                                              'n' -> return ()
-                                              'N' -> return ()
-                                              c -> askAgain
-    where tryFindMore = result kb symsC varsC $ next kb p
+askForMore :: RenameCollection -> RenameCollection -> Backtrack -> IO()
+askForMore symsC varsC b = do
+                             print "Should I try to find more solutions? [y/n]"
+                             let askAgain = askForMore symsC varsC b
+                             l <- getLine
+                             if null l
+                               then askAgain
+                               else let c = head l
+                                    in case c of
+                                           'y' -> tryFindMore
+                                           'Y' -> tryFindMore
+                                           'n' -> return ()
+                                           'N' -> return ()
+                                           c -> askAgain
+    where tryFindMore = result symsC varsC $ next b
 
-result :: KnowledgeBase -> RenameCollection -> RenameCollection -> ResolutionResult -> IO()
-result kb symsC varsC res = case res of
-                                    (Nothing, _) -> print "No solution."
-                                    (Just sub, p) -> do
-                                                       printSolution symsC varsC sub
-                                                       {--print ()
-                                                       print p
-                                                       print ()--}
-                                                       askForMore kb symsC varsC p
+result :: RenameCollection -> RenameCollection -> ResolutionResult -> IO()
+result symsC varsC res = maybe (print "No solution.") solution res
+    where solution (sub, b) = do
+                                printSolution symsC varsC sub
+                                askForMore symsC varsC b
 
 printInfo :: (KnowledgeBase, Query, QueryRenameInfo) -> IO()
-printInfo (kb, q, ((p, predsC), (s, symsC), (v, varsC))) = result kb symsC varsC $ resolve kb q
+printInfo (kb, q, ((p, predsC), (s, symsC), (v, varsC))) = result symsC varsC $ resolve kb q
 
 c1 = "f(a). f(b). g(a). g(b). h(b). k(X) :- f(X), g(X), h(X)."
 c2 = "nat(zero). nat(X) :- nat(Y), is(X, succ(Y)). is(X, X)."
