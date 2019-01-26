@@ -4,6 +4,10 @@ import Prolog.Engine
 import Prolog.Types (Term(Var, Func))
 import Data.List
 import Data.Maybe
+import Data.Either
+import Control.Monad
+import System.Environment (getArgs)
+import System.IO (openFile, IOMode(ReadMode), hGetContents, hClose, isEOF)
                                     
 printSolution :: Solution -> IO ()
 printSolution s = do
@@ -25,44 +29,57 @@ printParseError (from, (line, col)) = do
           strFrom Query = "query"                           
 
 askForMore :: Backtracker -> ResolutionBacktrack -> IO ()
-askForMore next b = do
-                      putStrLn "Should I try to find more solutions? [y/n]"
-                      let askAgain = askForMore next b
-                      l <- getLine
-                      if null l
-                        then askAgain
-                        else let c = head l
-                             in case c of
-                                    'y' -> tryFindMore
-                                    'Y' -> tryFindMore
-                                    'n' -> return ()
-                                    'N' -> return ()
-                                    c -> askAgain
-    where tryFindMore = printResult next $ next b
+askForMore next b = let again = askForMore next b
+                    in do
+                         putStrLn "Should I try to find more solutions? [y/n]"
+                         end <- isEOF
+                         when (not end) $ do
+                                            l <- getLine
+                                            if null l
+                                              then again
+                                              else case l of
+                                                       "y" -> tryFindMore
+                                                       "Y" -> tryFindMore
+                                                       "n" -> return ()
+                                                       "N" -> return ()
+                                                       c -> again
+    where tryFindMore = result next $ next b
 
-printResult :: Backtracker -> ResolutionResult -> IO ()
-printResult next res = maybe (putStrLn "No solution.") solution res
-    where solution (sub, b) = do
+result :: Backtracker -> ResolutionResult -> IO ()
+result next res = maybe noSolution solution res
+    where noSolution = putStrLn "No solution."
+          solution (sub, b) = do
                                 printSolution sub
                                 askForMore next b
 
-loadContent :: (Text, Text) -> IO()
-loadContent (c, p) = case engine c of
-                         (Left e) -> printParseError e
-                         (Right pipeLineForQuery) -> case pipeLineForQuery p of
-                                                         (Left e) -> printParseError e
-                                                         (Right (res, next)) -> printResult next res
+runQuery :: QueryPipeline -> IO ()
+runQuery pipeline = let runAgain = runQuery pipeline
+                    in do
+                         putStrLn "query ?-"
+                         end <- isEOF
+                         when (not end) $ do
+                                            query <- getLine
+                                            if null query
+                                              then runAgain
+                                              else case pipeline query of
+                                                       (Left e) -> do
+                                                                     printParseError e
+                                                                     runAgain
+                                                       (Right (res, next)) -> do
+                                                                                result next res
+                                                                                runAgain
 
-c1 = "f(a). f(b). g(a). g(b). h(b). k(X) :- f(X), g(X), h(X)."
-c2 = "nat(zero). nat(X) :- nat(Y), is(X, succ(Y)). is(X, X)."
-c3 = "l(v, m). l(h, m). j(X, Y) :- l(X, Z), l(Y, Z)."
-c4 = "m(X, l(X, T)). m(X, l(H, T)) :- m(X, T)."
-c5 = "f(j, b). f(j, s). f(s, c). f(c, a). f(s, t). g(X, Z) :- f(X, Y), f(Y, Z)."
-
-p1 = "k(Y)."
-p2 = "nat(X)."
-p3 = "j(X, Y)."
-p4 = "m(Z, l(a, l(b, null))), m(Z, l(b, l(c, null)))."
-p5 = "g(G, X)."
+runEngine :: Text -> IO ()
+runEngine content = either printParseError runQuery $ engine content
                                 
-main = mapM_ loadContent $ zip [c1, c2, c3, c4, c5] [p1, p2, p3, p4, p5]
+main = do
+         args <- getArgs
+         if null args
+           then putStrLn "Expecting file path to load knowledge base from."
+           else if length args > 1
+                  then putStrLn "Expecting exatcly one argument: file path to load knowledge base from."
+                  else do
+                         handle <- openFile (head args) ReadMode
+                         content <- hGetContents handle
+                         runEngine content
+                         hClose handle
