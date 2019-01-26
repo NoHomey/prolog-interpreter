@@ -110,7 +110,3 @@ createPipelineForQuery (kb, action) text = fmap ignite $ action text
                                                             
 engine :: Text -> EitherParseError QueryPipeline
 engine text = fmap createPipelineForQuery $ pipeline nextEngineIDs rulesRenameInfo varsRenameInfo text
-
-
-
-
