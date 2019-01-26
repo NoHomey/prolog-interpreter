@@ -19,7 +19,7 @@ import qualified Prolog.OptimizeForUnification as OU
 import qualified Data.KeyedCollection as KC
 import Data.Bifunctor
 
-data ParseErrorFrom = Rules | Query deriving (Eq, Show)
+data ParseErrorFrom = Rules | Query
 
 type ParseError = (ParseErrorFrom, PT.Counter)
 

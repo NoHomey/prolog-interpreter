@@ -31,7 +31,8 @@ data NonTerminal = KnowledgeBase
                  | Dash
                  | Dots
                  | WhiteSpaces
-                 | WhiteSpace deriving (Eq, Show)
+                 | WhiteSpace
+                 deriving (Eq)
 
 type Terminal = Char
 

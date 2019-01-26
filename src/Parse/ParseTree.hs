@@ -11,7 +11,7 @@ import Data.List
 import Data.Either
 import Data.Bifunctor
 
-data ParseTree n t = ParseTree {symbol :: Symbol n t, children :: [ParseTree n t]} deriving (Eq, Show)
+data ParseTree n t = ParseTree {symbol :: Symbol n t, children :: [ParseTree n t]}
 
 type State t s = ([t], s)
 

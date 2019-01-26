@@ -36,10 +36,10 @@ type Substitution r s v = U.Substitution s (RenamedVar r v)
 type Rules p s v = OU.Rules p s v
 
 data ResolutionStep r p s v = ResolutionStep { goal :: Query r p s v
-                                           , varsValues :: Substitution r s v
-                                           , options :: Rules p s v
-                                           , lastRID :: r
-                                           } deriving (Show)
+                                             , varsValues :: Substitution r s v
+                                             , options :: Rules p s v
+                                             , lastRID :: r
+                                             }
 
 type ResolutionPath r p s v = [ResolutionStep r p s v]
 

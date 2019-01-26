@@ -92,18 +92,6 @@ instance BifunctorM (Rule p) where
 instance FunctorM (Rule p s) where
     fmapM = bimapM return
 
-instance (Show s, Show v) => Show (Term s v) where
-    show (Var id) = show id
-    show f = let ps = parms f
-             in (show $ funcSymbol f) ++ if null ps then "" else show ps
-
-instance (Show p, Show s, Show v) => Show (Atom p s v) where
-    show a = (show $ predSymbol a) ++ (show $ terms a)
-
-instance (Show p, Show s, Show v) => Show (Rule p s v) where
-    show r = let rs = body r
-             in (show $ ruleHead r) ++ if null rs then "" else (" <- " ++ (show rs))
-
 isVar :: Term s v -> Bool
 isVar (Var _) = True
 isVar _       = False

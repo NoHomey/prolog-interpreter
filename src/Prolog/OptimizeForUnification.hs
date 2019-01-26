@@ -33,9 +33,6 @@ type Rules p s v = [Rule p s v]
 
 type KnowledgeBase kb p s v = kb (Rules p s v)
 
-instance (Show a) => Show (ArityIdentifier a) where
-    show aid = "{" ++ (show $ identifier aid) ++ ", " ++ (show $ arity aid) ++ "}"
-
 addArity :: a -> [t] -> ArityIdentifier a
 addArity id ts = ArityIdentifier id $ length ts
 

@@ -5,7 +5,7 @@ module Parse.Grammar (
     RuleBody
 ) where
 
-data Symbol n t = End | Skip n | NonTerminal n | Terminal t deriving (Eq, Show)
+data Symbol n t = End | Skip n | NonTerminal n | Terminal t deriving (Eq)
 
 type RuleBody n t = [Symbol n t]
 
