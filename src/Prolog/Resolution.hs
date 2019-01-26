@@ -1,4 +1,7 @@
+{-# LANGUAGE ConstraintKinds #-}
+
 module Prolog.Resolution (
+    RenamedVar,
     Query,
     Substitution,
     Rules,
@@ -22,45 +25,49 @@ import Data.Maybe
 import Data.Either
 import Control.Monad
 
-type Query p s v = OU.Query p s (v, v)
+type RenamedVar r v = (r, v)
 
-type Atom p s v = OU.Atom p s (v, v)
+type Query r p s v = OU.Query p s (RenamedVar r v)
 
-type Substitution s v = U.Substitution s (v, v)
+type Atom r p s v = OU.Atom p s (RenamedVar r v)
+
+type Substitution r s v = U.Substitution s (RenamedVar r v)
 
 type Rules p s v = OU.Rules p s v
 
-data ResolutionStep p s v = ResolutionStep { goal :: Query p s v
-                                           , varsValues :: Substitution s v
+data ResolutionStep r p s v = ResolutionStep { goal :: Query r p s v
+                                           , varsValues :: Substitution r s v
                                            , options :: Rules p s v
-                                           , lastRID :: v
+                                           , lastRID :: r
                                            } deriving (Show)
 
-type ResolutionPath p s v = [ResolutionStep p s v]
+type ResolutionPath r p s v = [ResolutionStep r p s v]
 
-type State p s v a = S.State (ResolutionPath p s v) a
-
-type Env kb p s v = (Next v, v, KnowledgeBase kb p s v)
-
-type Backtrack kb p s v = (Env kb p s v, ResolutionPath p s v)
-
-type ResolutionResult kb p s v = Maybe (Substitution s v, Backtrack kb p s v)
-
-type ResolutionState p s v = State p s v (Maybe (Substitution s v))
+type State r p s v a = S.State (ResolutionPath r p s v) a
 
 type Next a = a -> a
 
 type KnowledgeBase kb p s v = OU.KnowledgeBase kb p s v
 
-rid :: (v, v) -> v
+type Env kb r p s v = (Next r, r, KnowledgeBase kb p s v)
+
+type Backtrack kb r p s v = (Env kb r p s v, ResolutionPath r p s v)
+
+type ResolutionResult kb r p s v = Maybe (Substitution r s v, Backtrack kb r p s v)
+
+type ResolutionState r p s v = State r p s v (Maybe (Substitution r s v))
+
+type Requirement kb r p s v = (Eq r, Eq p, Eq s, Eq v, KC.KeyedCollection kb p)
+
+rid :: RenamedVar r v -> r
 rid = fst
 
-step :: (Eq p, Eq s, Eq v, KC.KeyedCollection kb p)
-     => Env kb p s v
-     -> ResolutionState p s v
-     -> ResolutionPath p s v
+step :: Requirement kb r p s v
+     => Env kb r p s v
+     -> ResolutionState r p s v
+     -> ResolutionPath r p s v
      -> Rules p s v
-     -> ResolutionState p s v
+     -> ResolutionState r p s v
 step env@(nextRID, qRID, kb) retry p rs = firstSolution rs
     where h = head p
           g = goal h
@@ -80,7 +87,7 @@ step env@(nextRID, qRID, kb) retry p rs = firstSolution rs
                           in vars ++ toVar
           varIdentifier v = fromRight undefined $ T.identifier v
 
-backtrack :: (Eq p, Eq s, Eq v, KC.KeyedCollection kb p) => Env kb p s v -> ResolutionState p s v
+backtrack :: Requirement kb r p s v => Env kb r p s v -> ResolutionState r p s v
 backtrack env = do
                   p <- S.get
                   if null p
@@ -88,7 +95,7 @@ backtrack env = do
                     else let retry = (S.put $ tail p) >> (backtrack env)
                          in step env retry p $ options $ head p
 
-down :: (Eq p, Eq s, Eq v, KC.KeyedCollection kb p) => Env kb p s v -> ResolutionState p s v
+down :: Requirement kb r p s v => Env kb r p s v -> ResolutionState r p s v
 down env@(_, _, kb) = do
                         p <- S.get
                         let s = head p
@@ -99,30 +106,30 @@ down env@(_, _, kb) = do
                                in maybe retry (step env retry p) $ findOptions $ head g
     where findOptions a = KC.find kb $ OU.identifier $ T.predSymbol a
 
-rename :: v -> OU.Atom p s v -> Atom p s v
+rename :: r -> OU.Atom p s v -> Atom r p s v
 rename rid = fmap ((,) rid)
 
-initialResolutionPath :: Next v -> v -> OU.Query p s v -> ResolutionPath p s v
+initialResolutionPath :: Next r -> r -> OU.Query p s v -> ResolutionPath r p s v
 initialResolutionPath nextRID qRID q = [ResolutionStep (map (rename qRID) q) U.empty [] $ nextRID qRID]
 
-result :: (Eq p, Eq s, Eq v, KC.KeyedCollection kb p)
-       => Env kb p s v 
-       -> ResolutionState p s v
-       -> ResolutionPath p s v
-       -> ResolutionResult kb p s v
+result :: Requirement kb r p s v
+       => Env kb r p s v 
+       -> ResolutionState r p s v
+       -> ResolutionPath r p s v
+       -> ResolutionResult kb r p s v
 result env m st = let (ms, p) = S.runState m st
                   in fmap (\s -> (s, (env, p))) ms
 
-resolve :: (Eq p, Eq s, Eq v, KC.KeyedCollection kb p)
-        => Next v
-        -> v
+resolve :: Requirement kb r p s v
+        => Next r
+        -> r
         -> KnowledgeBase kb p s v
         -> OU.Query p s v
-        -> ResolutionResult kb p s v
+        -> ResolutionResult kb r p s v
 resolve nextRID qRID kb q = let env = (nextRID, qRID, kb)
                                 m = down env
                                 st = initialResolutionPath nextRID qRID q
                             in result env m st
 
-next :: (Eq p, Eq s, Eq v, KC.KeyedCollection kb p) => Backtrack kb p s v -> ResolutionResult kb p s v
+next :: Requirement kb r p s v => Backtrack kb r p s v -> ResolutionResult kb r p s v
 next (env, path) =  result env (backtrack env) path
