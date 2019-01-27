@@ -28,46 +28,43 @@ printParseError (from, (line, col)) = do
     where strFrom Rules = "knowledge base content"
           strFrom Query = "query"                           
 
-askForMore :: Backtracker -> ResolutionBacktrack -> IO ()
-askForMore next b = let again = askForMore next b
-                    in do
+askForMore :: [Solution] -> IO ()
+askForMore solutions = do
                          putStrLn "Should I try to find more solutions? [y/n]"
                          end <- isEOF
                          when (not end) $ do
                                             l <- getLine
                                             if null l
-                                              then again
+                                              then askAgain
                                               else case l of
                                                        "y" -> tryFindMore
                                                        "Y" -> tryFindMore
                                                        "n" -> return ()
                                                        "N" -> return ()
-                                                       c -> again
-    where tryFindMore = result next $ next b
+                                                       c -> askAgain
+    where tryFindMore = printSolutions solutions
+          askAgain = askForMore solutions
 
-result :: Backtracker -> ResolutionResult -> IO ()
-result next res = maybe noSolution solution res
-    where noSolution = putStrLn "No solution."
-          solution (sub, b) = do
-                                printSolution sub
-                                askForMore next b
+printSolutions :: [Solution] -> IO ()
+printSolutions solutions = if null solutions
+                             then putStrLn "No solution."
+                             else do
+                                    printSolution $ head solutions
+                                    askForMore $ tail solutions
 
 runQuery :: QueryPipeline -> IO ()
-runQuery pipeline = let runAgain = runQuery pipeline
-                    in do
-                         putStrLn "query ?-"
-                         end <- isEOF
-                         when (not end) $ do
-                                            query <- getLine
-                                            if null query
-                                              then runAgain
-                                              else case pipeline query of
-                                                       (Left e) -> do
-                                                                     printParseError e
-                                                                     runAgain
-                                                       (Right (res, next)) -> do
-                                                                                result next res
-                                                                                runAgain
+runQuery pipeline = do
+                      end <- isEOF
+                      when (not end) processQuery
+    where processQuery = do
+                           putStrLn "query ?-"
+                           query <- getLine
+                           if null query
+                             then runAgain
+                             else case pipeline query of
+                                      (Left e) -> (printParseError e) >> runAgain
+                                      (Right solutions) -> (printSolutions solutions) >> runAgain
+          runAgain = runQuery pipeline
 
 runEngine :: Text -> IO ()
 runEngine content = either printParseError runQuery $ engine content

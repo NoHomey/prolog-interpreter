@@ -1,8 +1,5 @@
 module Prolog.Engine (
     Solution,
-    ResolutionBacktrack,
-    ResolutionResult,
-    Backtracker,
     QueryPipeline,
     ParseErrorFrom(..),
     ParseError,
@@ -44,23 +41,13 @@ type RenamedQueryInfo = (Query, QueryRenameInfo)
 
 type ResolutionSubstitution = Res.Substitution EngineID EngineID EngineID
 
-type ResolutionPath = Res.ResolutionPath EngineID EngineID EngineID EngineID
-
-type ResolutionEnv = (Next EngineID, EngineID, KnowledgeBase)
-
-type ResolutionBacktrack = (ResolutionEnv, ResolutionPath)
-
 type Solution = [(Identifier, Term)]
-
-type ResolutionResult = Maybe (Solution, ResolutionBacktrack)
 
 type ResolutionRenamedVar = Res.RenamedVar EngineID EngineID
 
 type PipelineResult = (KnowledgeBase, Text -> EitherParseError RenamedQueryInfo)
 
-type Backtracker = ResolutionBacktrack -> ResolutionResult
-
-type QueryPipeline = Text -> EitherParseError (ResolutionResult, Backtracker)
+type QueryPipeline = Text -> EitherParseError [Solution]
 
 nextEngineID :: Next EngineID
 nextEngineID = (+1)
@@ -102,10 +89,8 @@ solution symsC varsC s = let idVar = unmapVar varsC
 createPipelineForQuery :: PipelineResult -> QueryPipeline
 createPipelineForQuery (kb, action) text = fmap ignite $ action text
     where ignite (query, queryRenameInfo) = let liftSub = createSubLifter queryRenameInfo
-                                                liftResult = fmap (first liftSub)
-                                                backtracker = liftResult . Res.next
-                                                result = liftResult $ Res.resolve nextEngineID firstEngineID kb query
-                                            in (result , backtracker)
+                                                result = Res.resolve nextEngineID firstEngineID kb query
+                                            in map liftSub result
           createSubLifter (_, (_, symsC), (_, varsC)) = solution symsC varsC
                                                             
 engine :: Text -> EitherParseError QueryPipeline

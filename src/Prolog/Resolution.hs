@@ -2,17 +2,10 @@
 
 module Prolog.Resolution (
     RenamedVar,
-    Query,
     Substitution,
-    Rules,
-    ResolutionPath,
-    ResolutionResult,
     Next,
     KnowledgeBase,
-    Env,
-    Backtrack,
-    resolve,
-    next
+    resolve
 ) where
 
 import qualified Data.KeyedCollection as KC
@@ -20,7 +13,6 @@ import qualified Prolog.OptimizeForUnification as OU
 import qualified Prolog.Unification as U
 import qualified Prolog.Types as T
 import qualified Control.Monad.State as S
-import Data.Bifunctor
 import Data.Maybe
 import Data.Either
 import Control.Monad
@@ -120,16 +112,27 @@ result :: Requirement kb r p s v
 result env m st = let (ms, p) = S.runState m st
                   in fmap (\s -> (s, (env, p))) ms
 
+first :: Requirement kb r p s v
+      => Next r
+      -> r
+      -> KnowledgeBase kb p s v
+      -> OU.Query p s v
+      -> ResolutionResult kb r p s v
+first nextRID qRID kb q = let env = (nextRID, qRID, kb)
+                              m = down env
+                              st = initialResolutionPath nextRID qRID q
+                          in result env m st
+
+next :: Requirement kb r p s v => Backtrack kb r p s v -> ResolutionResult kb r p s v
+next (env, path) =  result env (backtrack env) path
+
 resolve :: Requirement kb r p s v
         => Next r
         -> r
         -> KnowledgeBase kb p s v
         -> OU.Query p s v
-        -> ResolutionResult kb r p s v
-resolve nextRID qRID kb q = let env = (nextRID, qRID, kb)
-                                m = down env
-                                st = initialResolutionPath nextRID qRID q
-                            in result env m st
-
-next :: Requirement kb r p s v => Backtrack kb r p s v -> ResolutionResult kb r p s v
-next (env, path) =  result env (backtrack env) path
+        -> [Substitution r s v]
+resolve nextRID qRID kb q = generate $ first nextRID qRID kb q
+    where generate m = case m of
+                           Nothing -> []
+                           (Just (s, b)) -> s:(generate $ next b)
