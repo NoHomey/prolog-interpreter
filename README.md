@@ -1,5 +1,5 @@
 # prolog-interpreter
-basic Prolog interpreter written in Haskell
+Basic Prolog interpreter written in Haskell for the Functional programming course in univeristy (FMI at SU)
 
 [GitHub Repo](https://github.com/NoHomey/prolog-interpreter)
 
