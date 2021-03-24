@@ -56,9 +56,9 @@ runQuery :: QueryPipeline -> IO ()
 runQuery pipeline = do
                       putStrLn "What do you want me to search for?"
                       end <- isEOF
-                      query <- getLine
-                      unless end $ processQuery query
-    where processQuery query = do
+                      unless end processQuery
+    where processQuery = do
+                           query <- getLine
                            if null query
                              then runAgain
                              else case pipeline query of
