@@ -32,7 +32,7 @@ askForMore :: [Solution] -> IO ()
 askForMore solutions = do
                          putStrLn "Should I try to find more solutions? [y/n]"
                          end <- isEOF
-                         when (not end) $ do
+                         unless end $ do
                                             l <- getLine
                                             if null l
                                               then askAgain
@@ -54,11 +54,11 @@ printSolutions solutions = if null solutions
 
 runQuery :: QueryPipeline -> IO ()
 runQuery pipeline = do
+                      putStrLn "What do you want me to search for?"
                       end <- isEOF
-                      when (not end) processQuery
-    where processQuery = do
-                           putStrLn "query ?-"
-                           query <- getLine
+                      query <- getLine
+                      unless end $ processQuery query
+    where processQuery query = do
                            if null query
                              then runAgain
                              else case pipeline query of
